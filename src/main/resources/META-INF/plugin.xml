@@ -1,0 +1,39 @@
+<idea-plugin>
+    <id>com.ykoellmann.ctexecutor.ctexecutor</id>
+    <name>cteXecutor</name>
+
+    <!-- Plugin version -->
+    <version>1.0.0</version>
+
+    <!-- Plugin description, auch mit HTML möglich -->
+    <description><![CDATA[
+        Execute and manage Common Table Expressions (CTEs) easily in DataGrip and IntelliJ-based IDEs.<br>
+        Highlights CTEs and allows selective execution of composed queries.<br>
+        <em>Efficient, intuitive, and developer-friendly.</em>
+    ]]></description>
+
+    <!-- Autor -->
+    <vendor email="yankoe@outlook.de">Yannik Köllmann</vendor>
+
+    <!-- Kompatibilität -->
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.database</depends>
+
+    <actions>
+        <action id="com.ykoellmann.ctexecutor.RunCteQueryAction"
+                class="com.ykoellmann.ctexecutor.RunCteQueryAction"
+                text="Run CT-Query"
+                description="Execute the selected CTE SQL query">
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+            <keyboard-shortcut keymap="$default" first-keystroke="ctrl R" second-keystroke="ENTER"/>
+        </action>
+
+        <action id="com.ykoellmann.ctexecutor.CopyCteSqlAction"
+                class="com.ykoellmann.ctexecutor.CopyCteSqlAction"
+                text="Copy CT-Query SQL"
+                description="Copy the selected CTE SQL query to clipboard">
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+            <keyboard-shortcut keymap="$default" first-keystroke="ctrl R" second-keystroke="C"/>
+        </action>
+    </actions>
+</idea-plugin>

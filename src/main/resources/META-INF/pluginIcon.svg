@@ -1,0 +1,11 @@
+<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+    <style>
+        .keyword { fill: #4A90E2; font-size: 20px; font-family: 'Courier New', Courier, monospace; font-weight: bold; }
+        .arrow { fill: #2ECC71; }
+    </style>
+    <!-- WITH keyword -->
+    <text x="8" y="30" class="keyword">WITH</text>
+
+    <!-- Right arrow (execution symbol) -->
+    <polygon class="arrow" points="42,22 56,32 42,42" />
+</svg>
