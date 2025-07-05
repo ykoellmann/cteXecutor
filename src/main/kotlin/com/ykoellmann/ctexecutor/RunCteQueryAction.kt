@@ -22,30 +22,43 @@ class RunCteQueryAction : AnAction() {
         }
     }
 
-    private fun executeSql(editor: Editor, sql: String) {
+
+
+
+    /**
+     * Inserts the given SQL into the document, selects it, executes it,
+     * and deletes it afterwards.
+     */
+    fun executeSql(editor: Editor, sql: String) {
         val project = editor.project ?: return
         val document = editor.document
 
-        ApplicationManager.getApplication().invokeLater {
-            val offset = editor.caretModel.offset
+        val runnable = Runnable {
+            // Remember document length before insertion to remove inserted SQL later
             val insertionPoint = document.textLength
             WriteCommandAction.runWriteCommandAction(project) {
                 document.insertString(insertionPoint, "\n$sql")
             }
 
+            val offset = editor.caretModel.offset
             val start = insertionPoint + 1
             val end = insertionPoint + sql.length + 1
 
             editor.caretModel.moveToOffset(end)
             editor.selectionModel.setSelection(start, end)
 
-            val dataContext = DataManager.getInstance().getDataContext(editor.component)
             val action = ActionManager.getInstance().getAction("Console.Jdbc.Execute")
             if (action != null) {
-                val event = AnActionEvent.createFromAnAction(action, null, ActionPlaces.UNKNOWN, dataContext)
-                action.actionPerformed(event)
+                ActionManager.getInstance().tryToExecute(
+                    action,
+                    null, // kein InputEvent, weil der Aufruf programmgesteuert erfolgt
+                    editor.component,
+                    ActionPlaces.UNKNOWN,
+                    true
+                )
             }
 
+            // Remove the inserted SQL after execution to keep document clean
             ApplicationManager.getApplication().invokeLater {
                 if (end <= document.textLength) {
                     WriteCommandAction.runWriteCommandAction(project) {
@@ -57,5 +70,7 @@ class RunCteQueryAction : AnAction() {
 
             editor.caretModel.moveToOffset(offset)
         }
+
+        ApplicationManager.getApplication().invokeLater(runnable)
     }
 }

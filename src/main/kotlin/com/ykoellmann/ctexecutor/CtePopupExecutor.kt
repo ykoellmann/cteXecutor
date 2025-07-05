@@ -12,13 +12,15 @@ import com.intellij.openapi.editor.markup.HighlighterTargetArea
 import com.intellij.openapi.editor.markup.RangeHighlighter
 import com.intellij.openapi.editor.markup.TextAttributes
 import com.intellij.openapi.ui.popup.JBPopup
-import com.intellij.openapi.ui.popup.JBPopupAdapter
 import com.intellij.openapi.ui.popup.JBPopupFactory
+import com.intellij.openapi.ui.popup.JBPopupListener
 import com.intellij.openapi.ui.popup.LightweightWindowEvent
 import com.intellij.openapi.util.TextRange
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.util.elementType
+import com.intellij.sql.psi.SqlElementType
+import com.intellij.sql.psi.SqlElementTypes
 import com.intellij.ui.JBColor
 import java.awt.Color
 import java.awt.Dimension
@@ -63,7 +65,7 @@ class CtePopupExecutor(
         if (ctes.isEmpty()) return
 
         val options = ctes.map { it.name }
-        JBPopupFactory.getInstance()
+        popup = JBPopupFactory.getInstance()
             .createPopupChooserBuilder(options)
             .setTitle(title)
             .setResizable(true)
@@ -81,15 +83,13 @@ class CtePopupExecutor(
             }
             .setSelectedValue(activeCte?.name ?: ctes.last().name, true)
             .createPopup()
-            .also {
-                popup = it
-                it.addListener(object : JBPopupAdapter() {
-                    override fun onClosed(event: LightweightWindowEvent) {
-                        removeAllHighlights()
-                    }
-                })
+
+        popup?.showInBestPositionFor { editor }
+        popup?.addListener(object : JBPopupListener {
+            override fun onClosed(event: LightweightWindowEvent) {
+                removeAllHighlights()
             }
-            .showInBestPositionFor(editor)
+        })
     }
 
     /**
@@ -132,21 +132,21 @@ class CtePopupExecutor(
         // Special case: if first CTE is selected and there are others, include the "WITH" keyword and whitespace
         if (index == 0 && selectedIndex > 0) {
             val parentChildren = cteElement.parent.children
-            val startWithIndex = parentChildren.indexOfFirst { it.elementType?.debugName == "WITH" }
-            val endWhitespaceIndex = parentChildren.indexOfFirst { it.elementType?.debugName == "WHITE_SPACE" }
+            val startWithIndex = parentChildren.indexOfFirst { it.elementType == SqlElementTypes.SQL_WITH }
+            val endWhitespaceIndex = parentChildren.indexOfFirst { it.elementType == SqlElementTypes.WHITE_SPACE }
             elements.addAll(parentChildren.filterIndexed { i, _ -> i in startWithIndex..endWhitespaceIndex })
         }
 
         when {
             // Selected CTE: include content inside parentheses (body)
             index == selectedIndex -> {
-                val startIndex = children.indexOfFirst { it.elementType?.debugName == "(" }
-                val endIndex = children.indexOfLast { it.elementType?.debugName == ")" }
+                val startIndex = children.indexOfFirst { it.elementType == SqlElementTypes.SQL_LEFT_PAREN }
+                val endIndex = children.indexOfLast { it.elementType == SqlElementTypes.SQL_RIGHT_PAREN }
                 elements.addAll(children.filterIndexed { i, _ -> i in (startIndex + 1) until endIndex })
             }
             // Next CTE after selected: include up to the closing parenthesis
             index + 1 == selectedIndex -> {
-                val endIndex = children.indexOfLast { it.elementType?.debugName == ")" }
+                val endIndex = children.indexOfLast { it.elementType == SqlElementTypes.SQL_RIGHT_PAREN }
                 elements.addAll(children.filterIndexed { i, _ -> i <= endIndex })
             }
             // Other CTEs: include the full element plus its following sibling (usually comma)
@@ -211,49 +211,5 @@ class CtePopupExecutor(
             }
         }
         return Pair(ctes, activeCte)
-    }
-
-    /**
-     * Inserts the given SQL into the document, selects it, executes it,
-     * and deletes it afterwards.
-     */
-    private fun executeSql(sql: String) {
-        val project = editor.project ?: return
-        val document = editor.document
-
-        val runnable = Runnable {
-            // Remember document length before insertion to remove inserted SQL later
-            val insertionPoint = document.textLength
-            WriteCommandAction.runWriteCommandAction(project) {
-                document.insertString(insertionPoint, "\n$sql")
-            }
-
-            val start = insertionPoint + 1
-            val end = insertionPoint + sql.length + 1
-
-            editor.caretModel.moveToOffset(end)
-            editor.selectionModel.setSelection(start, end)
-
-            val dataContext = DataManager.getInstance().getDataContext(editor.component)
-            val action = ActionManager.getInstance().getAction("Console.Jdbc.Execute") // or "SqlExecute" depending on your version
-            if (action != null) {
-                val event = AnActionEvent.createFromAnAction(action, null, ActionPlaces.UNKNOWN, dataContext)
-                action.actionPerformed(event)
-            }
-
-            // Remove the inserted SQL after execution to keep document clean
-            ApplicationManager.getApplication().invokeLater {
-                if (end <= document.textLength) {
-                    WriteCommandAction.runWriteCommandAction(project) {
-                        document.deleteString(start, end)
-                    }
-                }
-                editor.selectionModel.removeSelection()
-            }
-
-            editor.caretModel.moveToOffset(caretOffset)
-        }
-
-        ApplicationManager.getApplication().invokeLater(runnable)
     }
 }
