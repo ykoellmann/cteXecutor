@@ -50,14 +50,13 @@ Contributions and suggestions are welcome! Feel free to open issues or pull requ
 
 ## 📄 License
 
-This project is licensed under the **Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)** license.
+This project is licensed under a custom license.
 
-You are free to use, modify, and share this plugin for personal, educational, and open-source purposes.
+You may freely use, modify, and share this plugin for **personal, educational, and internal commercial use**.
 
-**Commercial use is not allowed** without explicit permission.
+**You may not sell, resell, or include this plugin in any paid product or service.**
 
-See the [LICENSE](LICENSE) file for full terms.  
-Learn more: [https://creativecommons.org/licenses/by-nc/4.0](https://creativecommons.org/licenses/by-nc/4.0)
+See the [LICENSE](LICENSE) file for full terms.
 
 ## Author
 Yannik Köllmann
