@@ -1,12 +1,12 @@
 # cteXecutor
-IntelliJ plugin to easily execute Common Table Expressions (CTEs) in SQL files. Select CTEs from a popup, highlight their code, and run or copy the SQL effortlessly.
+JetBrains IDEs plugin to easily execute Common Table Expressions (CTEs) in SQL files. Select CTEs from a popup, highlight their code, and run or copy the SQL effortlessly.
 
 ![Plugin Logo](src/main/resources/META-INF/pluginIcon.svg)
 ---
 
 ## Overview
 
-**cteXecutor** is an IntelliJ IDEA plugin designed to simplify working with SQL Common Table Expressions (CTEs).  
+**cteXecutor** is a plugin for JetBrains IDEs designed to simplify working with SQL Common Table Expressions (CTEs).  
 It helps you easily select, highlight, and execute specific CTEs or a chain of CTEs directly from your SQL editor.
 
 ---
