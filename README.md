@@ -24,7 +24,7 @@ It helps you easily select, highlight, and execute specific CTEs or a chain of C
 
 ## Installation
 
-**JetBrains Marketplace**: Search for "cteXecutor" in the Plugins Marketplace inside IntelliJ IDEA.
+**JetBrains Marketplace**: Search for "cteXecutor" in the Plugins Marketplace inside your JetBrains IDE.
 
 ## Usage
 
