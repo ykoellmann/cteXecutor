@@ -1,9 +1,9 @@
 <idea-plugin>
-    <id>com.ykoellmann.ctexecutor.ctexecutor</id>
+    <id>com.ykoellmann.ctexecutor</id>
     <name>cteXecutor</name>
 
     <!-- Plugin version -->
-    <version>1.0.1</version>
+    <version>1.1.0</version>
 
     <!-- Plugin description, auch mit HTML möglich -->
     <description><![CDATA[
@@ -20,20 +20,28 @@
     <depends>com.intellij.modules.database</depends>
 
     <actions>
-        <action id="com.ykoellmann.ctexecutor.RunCteQueryAction"
-                class="com.ykoellmann.ctexecutor.RunCteQueryAction"
+        <action id="com.ykoellmann.ctexecutor.RunAction"
+                class="com.ykoellmann.ctexecutor.RunAction"
                 text="Run CT-Query"
                 description="Execute the selected CTE SQL query">
             <add-to-group group-id="EditorPopupMenu" anchor="last"/>
             <keyboard-shortcut keymap="$default" first-keystroke="ctrl R" second-keystroke="ENTER"/>
         </action>
 
-        <action id="com.ykoellmann.ctexecutor.CopyCteSqlAction"
-                class="com.ykoellmann.ctexecutor.CopyCteSqlAction"
+        <action id="com.ykoellmann.ctexecutor.CopyAction"
+                class="com.ykoellmann.ctexecutor.CopyAction"
                 text="Copy CT-Query SQL"
                 description="Copy the selected CTE SQL query to clipboard">
             <add-to-group group-id="EditorPopupMenu" anchor="last"/>
             <keyboard-shortcut keymap="$default" first-keystroke="ctrl R" second-keystroke="C"/>
+        </action>
+        
+        <action id="com.ykoellmann.ctexecutor.CopyAndEditAction"
+                class="com.ykoellmann.ctexecutor.CopyAndEditAction"
+                text="Edit and Run SQL"
+                description="Open a SQL editor dialog with full language support">
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+            <keyboard-shortcut keymap="$default" first-keystroke="ctrl R" second-keystroke="W"/>
         </action>
     </actions>
 </idea-plugin>

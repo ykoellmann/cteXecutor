@@ -1,11 +1,5 @@
 package com.ykoellmann.ctexecutor
 
-import com.intellij.ide.DataManager
-import com.intellij.openapi.actionSystem.ActionManager
-import com.intellij.openapi.actionSystem.ActionPlaces
-import com.intellij.openapi.actionSystem.AnActionEvent
-import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.markup.HighlighterLayer
 import com.intellij.openapi.editor.markup.HighlighterTargetArea
@@ -19,11 +13,9 @@ import com.intellij.openapi.util.TextRange
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.util.elementType
-import com.intellij.sql.psi.SqlElementType
 import com.intellij.sql.psi.SqlElementTypes
 import com.intellij.ui.JBColor
 import java.awt.Color
-import java.awt.Dimension
 
 class CtePopupExecutor(
     private val editor: Editor,
@@ -35,10 +27,7 @@ class CtePopupExecutor(
     // Reference to the currently shown popup
     private var popup: JBPopup? = null
 
-    // Store caret offset before showing the popup, to restore later if needed
-    private var caretOffset: Int = editor.caretModel.offset
-
-    // Data class representing a single CTE entry with its name, PSI element, and index
+    // Data class representing a single CTE entry
     data class CteEntry(
         val name: String,
         val element: PsiElement,
@@ -186,9 +175,17 @@ class CtePopupExecutor(
 
         // Traverse parents until finding the WITH clause node
         var withClause = elementAtCaret.parent
-        while (withClause != null && withClause.node?.elementType?.toString() != "SQL_WITH_CLAUSE") {
+        while (withClause != null 
+            && !(withClause.node?.elementType == SqlElementTypes.SQL_WITH 
+                    || withClause.node?.elementType == SqlElementTypes.SQL_WITH_QUERY_EXPRESSION)) {
+            
             withClause = withClause.parent
         }
+        
+        if (withClause.elementType == SqlElementTypes.SQL_WITH_QUERY_EXPRESSION) {
+            withClause = withClause.children.single{ it.elementType == SqlElementTypes.SQL_WITH_CLAUSE }
+        }
+        
         if (withClause == null) return Pair(emptyList(), null)
 
         val children = withClause.children
@@ -198,7 +195,7 @@ class CtePopupExecutor(
         var index = 0
         for (child in children) {
             // Identify named CTE definitions by their element type
-            if (child.node?.elementType?.toString() == "SQL_NAMED_QUERY_DEFINITION") {
+            if (child.node?.elementType == SqlElementTypes.SQL_NAMED_QUERY_DEFINITION) {
                 val range = child.textRange
                 val name = child.firstChild.text
                 val entry = CteEntry(name, child, index++)
