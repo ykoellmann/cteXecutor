@@ -35,7 +35,7 @@
             <add-to-group group-id="EditorPopupMenu" anchor="last"/>
             <keyboard-shortcut keymap="$default" first-keystroke="ctrl R" second-keystroke="C"/>
         </action>
-        
+
         <action id="com.ykoellmann.ctexecutor.CopyAndEditAction"
                 class="com.ykoellmann.ctexecutor.CopyAndEditAction"
                 text="Edit and Run SQL"
@@ -44,4 +44,15 @@
             <keyboard-shortcut keymap="$default" first-keystroke="ctrl R" second-keystroke="W"/>
         </action>
     </actions>
+
+    <change-notes>
+        <![CDATA[
+        <ul>
+            <li>Added "Copy and Edit SQL" action, allowing you to append WHERE clauses or other modifications at the end of CTE queries</li>
+            <li>Refactored code structure to reduce duplication</li>
+            <li>Renamed actions for improved clarity and usability</li>
+        </ul>
+    ]]>
+    </change-notes>
+
 </idea-plugin>
