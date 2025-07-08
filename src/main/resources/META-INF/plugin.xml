@@ -1,5 +1,5 @@
 <idea-plugin>
-    <id>com.ykoellmann.ctexecutor</id>
+    <id>com.ykoellmann.ctexecutor.ctexecutor</id>
     <name>cteXecutor</name>
 
     <!-- Plugin version -->
