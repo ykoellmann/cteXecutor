@@ -24,7 +24,7 @@ class RunAction(override val title: String = "Execute CTE") : CopyAndEditAction(
             val insertionPoint = insertSql(editor, sql)
 
             val offset = editor.caretModel.offset
-            val start = insertionPoint + 1
+            val start = insertionPoint
             val end = insertionPoint + sql.length + 1
 
             editor.caretModel.moveToOffset(end)
@@ -43,11 +43,9 @@ class RunAction(override val title: String = "Execute CTE") : CopyAndEditAction(
 
             // Remove the inserted SQL after execution to keep document clean
             ApplicationManager.getApplication().invokeLater {
-                if (end <= document.textLength) {
                     WriteCommandAction.runWriteCommandAction(project) {
-                        document.deleteString(start, end)
+                        document.deleteString(start, document.textLength)
                     }
-                }
                 editor.selectionModel.removeSelection()
             }
 
