@@ -141,7 +141,13 @@ class CtePopupExecutor(
             // Other CTEs: include the full element plus its following sibling (usually comma)
             else -> {
                 elements.add(cteElement)
-                cteElement.nextSibling?.let { elements.add(it) }
+                
+                var curElement = cteElement
+                do {
+                    curElement = curElement.nextSibling
+                    curElement.let { elements.add(it) }
+                }
+                while (curElement.elementType != SqlElementTypes.SQL_COMMA)
             }
         }
         return elements
