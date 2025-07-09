@@ -25,7 +25,7 @@
                 text="Run CT-Query"
                 description="Execute the selected CTE SQL query">
             <add-to-group group-id="EditorPopupMenu" anchor="last"/>
-            <keyboard-shortcut keymap="$default" first-keystroke="ctrl R" second-keystroke="ENTER"/>
+            <keyboard-shortcut keymap="$default" first-keystroke="ctrl NUMBER_SIGN" second-keystroke="ENTER"/>
         </action>
 
         <action id="com.ykoellmann.ctexecutor.CopyAction"
@@ -33,7 +33,7 @@
                 text="Copy CT-Query SQL"
                 description="Copy the selected CTE SQL query to clipboard">
             <add-to-group group-id="EditorPopupMenu" anchor="last"/>
-            <keyboard-shortcut keymap="$default" first-keystroke="ctrl R" second-keystroke="C"/>
+            <keyboard-shortcut keymap="$default" first-keystroke="ctrl NUMBER_SIGN" second-keystroke="C"/>
         </action>
 
         <action id="com.ykoellmann.ctexecutor.CopyAndEditAction"
@@ -41,7 +41,7 @@
                 text="Edit and Run SQL"
                 description="Open a SQL editor dialog with full language support">
             <add-to-group group-id="EditorPopupMenu" anchor="last"/>
-            <keyboard-shortcut keymap="$default" first-keystroke="ctrl R" second-keystroke="W"/>
+            <keyboard-shortcut keymap="$default" first-keystroke="ctrl NUMBER_SIGN" second-keystroke="W"/>
         </action>
     </actions>
 
