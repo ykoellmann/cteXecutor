@@ -30,7 +30,7 @@ It helps you easily select, highlight, and execute specific CTEs or a chain of C
 
 1. Open a SQL file containing CTEs (WITH clauses).
 2. Place the caret anywhere inside or near the CTE.
-3. Invoke the action **Run CT-Query** (default shortcut: `Ctrl+R` then `Enter`).
+3. Invoke the action **Run CT-Query** (default shortcut: `Ctrl+#` then `Enter`).
 4. Select the desired CTE from the popup.
 5. The plugin highlights the relevant SQL and executes the query in the console.
 6. The inserted SQL is automatically cleaned up after execution.
@@ -39,8 +39,8 @@ It helps you easily select, highlight, and execute specific CTEs or a chain of C
 
 ## Keyboard Shortcut
 
-- Run: `Ctrl+R`, then `Enter` (configurable via IDE keymap settings).
-- Copy: `Ctrl+R`, then `C` (configurable via IDE keymap settings).
+- Run: `Ctrl+#`, then `Enter` (configurable via IDE keymap settings).
+- Copy: `Ctrl+#`, then `C` (configurable via IDE keymap settings).
 
 ---
 
