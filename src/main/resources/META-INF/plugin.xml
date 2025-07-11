@@ -3,7 +3,7 @@
     <name>cteXecutor</name>
 
     <!-- Plugin version -->
-    <version>1.1.1</version>
+    <version>1.1.2</version>
 
     <!-- Plugin description, auch mit HTML möglich -->
     <description><![CDATA[
@@ -17,7 +17,7 @@
 
     <!-- Kompatibilität -->
     <depends>com.intellij.modules.platform</depends>
-    <depends>com.intellij.modules.database</depends>
+    <depends>com.intellij.database</depends>
 
     <actions>
         <action id="com.ykoellmann.ctexecutor.RunAction"
