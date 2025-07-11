@@ -17,7 +17,7 @@
 
     <!-- Kompatibilität -->
     <depends>com.intellij.modules.platform</depends>
-    <depends>com.intellij.modules.database</depends>
+    <depends>com.intellij.database</depends>
 
     <actions>
         <action id="com.ykoellmann.ctexecutor.RunAction"
