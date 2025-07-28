@@ -3,7 +3,7 @@ package com.ykoellmann.ctexecutor
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.editor.Editor
 
-open class CopyAndEditAction(override val title: String = "Copy CTE") : CteAction() {
+open class CopyAndEditAction(override val title: String = "Copy and Edit CTE") : CteAction() {
     
     override fun handleSql(editor: Editor, sql: String) {
         var finalSql = sql.trim(';') + "\n;"
