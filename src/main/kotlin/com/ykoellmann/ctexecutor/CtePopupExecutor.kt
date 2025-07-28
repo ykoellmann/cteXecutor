@@ -1,6 +1,8 @@
 package com.ykoellmann.ctexecutor
 
 import com.intellij.openapi.editor.Editor
+import com.intellij.openapi.editor.colors.EditorColors
+import com.intellij.openapi.editor.colors.EditorColorsManager
 import com.intellij.openapi.editor.markup.HighlighterLayer
 import com.intellij.openapi.editor.markup.HighlighterTargetArea
 import com.intellij.openapi.editor.markup.RangeHighlighter
@@ -15,7 +17,9 @@ import com.intellij.psi.PsiFile
 import com.intellij.psi.util.elementType
 import com.intellij.sql.psi.SqlElementTypes
 import com.intellij.ui.JBColor
+import com.intellij.util.ui.JBUI
 import java.awt.Color
+import javax.swing.JLabel
 
 class CtePopupExecutor(
     private val editor: Editor,
@@ -59,6 +63,23 @@ class CtePopupExecutor(
             .setTitle(title)
             .setResizable(true)
             .setMovable(true)
+            .setRenderer { list, value, index, isSelected, cellHasFocus ->
+                val label = JLabel(value)
+                label.border = JBUI.Borders.empty(6, 12) // Padding (vertical=6, horizontal=12)
+
+                // Optional: Styling für Auswahl
+                if (isSelected) {
+                    label.background = list.selectionBackground
+                    label.foreground = list.selectionForeground
+                    label.isOpaque = true
+                } else {
+                    label.background = list.background
+                    label.foreground = list.foreground
+                    label.isOpaque = true
+                }
+
+                label
+            }
             .setItemSelectedCallback { name ->
                 val temp = ctes.find { it.name == name } ?: return@setItemSelectedCallback
                 val rangesToHighlight = ctes.filter { it.index <= temp.index }
@@ -87,7 +108,9 @@ class CtePopupExecutor(
      */
     private fun highlightRanges(ranges: List<TextRange>) {
         removeAllHighlights()
-        val highlightColor = JBColor(Color(0x2D, 0x54, 0x3F), Color(0x2D, 0x54, 0x3F)) // Dark green background
+        var colorScheme = EditorColorsManager.getInstance().globalScheme;
+        val attributes = colorScheme.getAttributes(EditorColors.SEARCH_RESULT_ATTRIBUTES)
+        val highlightColor = attributes.backgroundColor
         for (range in ranges) {
             val highlighter = editor.markupModel.addRangeHighlighter(
                 range.startOffset,
