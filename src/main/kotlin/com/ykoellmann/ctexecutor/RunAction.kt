@@ -6,10 +6,16 @@ import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.editor.Editor
 
-class RunAction(override val title: String = "Execute CTE") : CopyAndEditAction() {
+/**
+ * Run CT-Query Action
+ * Shows popup with all CTEs, executes selected one with dependencies
+ */
+class RunAction : SqlActionBase() {
 
-    override fun handleSql(editor: Editor, sql: String) {
-        executeSql(editor, sql)
+    override val title: String = "Execute CTE"
+
+    override fun handleSelectedOption(editor: Editor, option: PopupOption) {
+        executeSql(editor, option.sql)
     }
 
     /**
@@ -21,7 +27,12 @@ class RunAction(override val title: String = "Execute CTE") : CopyAndEditAction(
         val document = editor.document
 
         val runnable = Runnable {
-            val insertionPoint = insertSql(editor, sql)
+            val insertionPoint = document.textLength
+
+            // Insert SQL
+            WriteCommandAction.runWriteCommandAction(project) {
+                document.insertString(insertionPoint, "\n$sql")
+            }
 
             val offset = editor.caretModel.offset
             val start = insertionPoint
@@ -30,22 +41,23 @@ class RunAction(override val title: String = "Execute CTE") : CopyAndEditAction(
             editor.caretModel.moveToOffset(end)
             editor.selectionModel.setSelection(start, end)
 
+            // Execute
             val action = ActionManager.getInstance().getAction("Console.Jdbc.Execute")
             if (action != null) {
                 ActionManager.getInstance().tryToExecute(
                     action,
-                    null, // kein InputEvent, weil der Aufruf programmgesteuert erfolgt
+                    null,
                     editor.component,
                     ActionPlaces.UNKNOWN,
                     true
                 )
             }
 
-            // Remove the inserted SQL after execution to keep document clean
+            // Remove the inserted SQL after execution
             ApplicationManager.getApplication().invokeLater {
-                    WriteCommandAction.runWriteCommandAction(project) {
-                        document.deleteString(start, document.textLength)
-                    }
+                WriteCommandAction.runWriteCommandAction(project) {
+                    document.deleteString(start, document.textLength)
+                }
                 editor.selectionModel.removeSelection()
             }
 

@@ -7,60 +7,67 @@ import com.intellij.psi.util.elementType
 import com.intellij.sql.psi.SqlElementTypes
 
 /**
- * Recursive SQL Dependency Analyzer
- * Analyzes SQL from cursor position and recursively resolves all dependencies
+ * Central SQL Dependency Analyzer
+ * Analyzes SQL structure and recursively resolves all CTE dependencies
  */
 class SqlDependencyAnalyzer(
     private val file: PsiFile,
     private val caretOffset: Int
 ) {
-    data class SqlContext(
-        val ctes: List<CteInfo>,
-        val targetQuery: PsiElement,
-        val fullSql: String,
-        val highlightRanges: List<TextRange> // Text ranges to highlight (like CtePopupExecutor)
+    /**
+     * Complete analysis result with all information needed for execution and highlighting
+     */
+    data class AnalysisResult(
+        val allCtes: List<CteEntry>,           // All CTEs in the WITH clause
+        val requiredCtes: List<CteEntry>,      // CTEs needed for target query
+        val targetQuery: PsiElement,           // The query element at cursor
+        val fullSql: String,                   // Complete executable SQL
+        val highlightRanges: List<TextRange>  // Ranges to highlight
     )
 
-    data class CteInfo(
+    /**
+     * Represents a single CTE with all its information
+     */
+    data class CteEntry(
         val name: String,
         val element: PsiElement,
         val index: Int
     )
 
     /**
-     * Main analysis entry point - finds dependencies recursively
+     * Main analysis entry point
+     * Returns complete analysis result or null if no CTEs found
      */
-    fun analyze(): SqlContext? {
+    fun analyze(): AnalysisResult? {
         val elementAtCaret = file.findElementAt(caretOffset) ?: return null
 
-        // Find the WITH clause that contains all CTEs
+        // Find the WITH clause
         val withClause = findWithClause(elementAtCaret) ?: return null
 
-        // Extract all available CTEs
+        // Extract all CTEs
         val allCtes = extractAllCtes(withClause)
         if (allCtes.isEmpty()) return null
 
-        // Find the exact query element at cursor (FIRST match, not outermost!)
+        // Find target query at cursor (innermost, not outermost!)
         val targetQuery = findTargetQueryAtCursor(elementAtCaret, withClause)
 
-        // Recursively find all dependencies
+        // Recursively find all required dependencies
         val requiredCteNames = findAllDependenciesRecursive(targetQuery, allCtes.map { it.name }.toSet())
 
-        // Get the CTEs in correct order
+        // Filter to only required CTEs, in order
         val requiredCtes = allCtes.filter { it.name in requiredCteNames }
 
         // Build SQL
         val sql = buildSql(requiredCtes, targetQuery)
 
-        // Build highlight ranges (like CtePopupExecutor does it)
-        val highlightRanges = buildHighlightRanges(requiredCtes, targetQuery)
+        // Build highlight ranges
+        val highlightRanges = buildHighlightRanges(requiredCtes, targetQuery, allCtes)
 
-        return SqlContext(requiredCtes, targetQuery, sql, highlightRanges)
+        return AnalysisResult(allCtes, requiredCtes, targetQuery, sql, highlightRanges)
     }
 
     /**
      * Finds the WITH clause containing the cursor
-     * Same logic as CtePopupExecutor
      */
     private fun findWithClause(element: PsiElement): PsiElement? {
         var current = element.parent
@@ -71,7 +78,6 @@ class SqlDependencyAnalyzer(
             when (nodeType) {
                 SqlElementTypes.SQL_WITH_CLAUSE -> return current
                 SqlElementTypes.SQL_WITH_QUERY_EXPRESSION -> {
-                    // Get the actual WITH_CLAUSE child
                     return current.children.firstOrNull {
                         it.elementType == SqlElementTypes.SQL_WITH_CLAUSE
                     }
@@ -87,14 +93,14 @@ class SqlDependencyAnalyzer(
     /**
      * Extracts all CTE definitions from WITH clause
      */
-    private fun extractAllCtes(withClause: PsiElement): List<CteInfo> {
-        val ctes = mutableListOf<CteInfo>()
+    private fun extractAllCtes(withClause: PsiElement): List<CteEntry> {
+        val ctes = mutableListOf<CteEntry>()
         var index = 0
 
         for (child in withClause.children) {
             if (child.node?.elementType == SqlElementTypes.SQL_NAMED_QUERY_DEFINITION) {
                 val name = child.firstChild?.text ?: continue
-                ctes.add(CteInfo(name, child, index++))
+                ctes.add(CteEntry(name, child, index++))
             }
         }
 
@@ -103,14 +109,7 @@ class SqlDependencyAnalyzer(
 
     /**
      * Finds the exact query element at cursor position.
-     * IMPORTANT: Returns the FIRST (innermost) meaningful query element, not the outermost!
-     *
-     * Example:
-     * WITH y AS (...)
-     * SELECT *, (SELECT 1 FROM y) FROM y
-     *              ^cursor here
-     *
-     * Should return the inner "SELECT 1 FROM y", NOT the outer SELECT!
+     * Returns the FIRST (innermost) match, not the outermost!
      */
     private fun findTargetQueryAtCursor(elementAtCaret: PsiElement, withClause: PsiElement): PsiElement {
         var current: PsiElement? = elementAtCaret
@@ -119,28 +118,16 @@ class SqlDependencyAnalyzer(
             val nodeType = current.node?.elementType
 
             when (nodeType) {
-                // Found a SELECT statement - STOP HERE! This is our target
-                SqlElementTypes.SQL_SELECT_STATEMENT -> {
-                    return current
-                }
-                // Found a query expression - could be a subquery, STOP HERE
-                SqlElementTypes.SQL_QUERY_EXPRESSION -> {
-                    return current
-                }
-                // Found a CTE definition - STOP HERE
-                SqlElementTypes.SQL_NAMED_QUERY_DEFINITION -> {
-                    return current
-                }
-                // Don't go past the WITH clause
-                SqlElementTypes.SQL_WITH_CLAUSE -> {
-                    break
-                }
+                SqlElementTypes.SQL_SELECT_STATEMENT -> return current
+                SqlElementTypes.SQL_QUERY_EXPRESSION -> return current
+                SqlElementTypes.SQL_NAMED_QUERY_DEFINITION -> return current
+                SqlElementTypes.SQL_WITH_CLAUSE -> break
             }
 
             current = current.parent
         }
 
-        // Fallback: return the main query after WITH clause
+        // Fallback: main query after WITH
         return findMainQueryAfterWith(withClause) ?: withClause.parent ?: withClause
     }
 
@@ -150,7 +137,6 @@ class SqlDependencyAnalyzer(
     private fun findMainQueryAfterWith(withClause: PsiElement): PsiElement? {
         val parent = withClause.parent ?: return null
 
-        // Look for SELECT_STATEMENT siblings after the WITH clause
         var sibling: PsiElement? = withClause.nextSibling
         while (sibling != null) {
             if (sibling.elementType == SqlElementTypes.SQL_SELECT_STATEMENT) {
@@ -159,7 +145,6 @@ class SqlDependencyAnalyzer(
             sibling = sibling.nextSibling
         }
 
-        // Or check children of parent
         for (child in parent.children) {
             if (child != withClause && child.elementType == SqlElementTypes.SQL_SELECT_STATEMENT) {
                 return child
@@ -171,13 +156,6 @@ class SqlDependencyAnalyzer(
 
     /**
      * RECURSIVE: Finds all CTE dependencies for a given query element
-     *
-     * Algorithm:
-     * 1. Find all table references in the current element
-     * 2. For each reference that is a CTE name:
-     *    - Add it to dependencies
-     *    - Recursively analyze that CTE's body
-     * 3. Return all dependencies (direct + transitive)
      */
     private fun findAllDependenciesRecursive(
         element: PsiElement,
@@ -185,17 +163,13 @@ class SqlDependencyAnalyzer(
         visited: MutableSet<String> = mutableSetOf()
     ): Set<String> {
         val dependencies = mutableSetOf<String>()
-
-        // Find all table/CTE references in this element
         val references = findTableReferences(element)
 
         for (ref in references) {
-            // Check if this reference is actually a CTE
             if (ref in availableCtenames && ref !in visited) {
                 dependencies.add(ref)
                 visited.add(ref)
 
-                // Find the CTE element and recursively analyze it
                 val cteElement = findCteByName(ref)
                 if (cteElement != null) {
                     val transitiveDeps = findAllDependenciesRecursive(cteElement, availableCtenames, visited)
@@ -208,7 +182,7 @@ class SqlDependencyAnalyzer(
     }
 
     /**
-     * Finds all table/CTE references in an element (recursively searches the tree)
+     * Finds all table/CTE references in an element
      */
     private fun findTableReferences(element: PsiElement): Set<String> {
         val references = mutableSetOf<String>()
@@ -216,22 +190,12 @@ class SqlDependencyAnalyzer(
         fun collectReferences(e: PsiElement) {
             val nodeType = e.node?.elementType
 
-            // Look for table references in FROM clauses
             if (nodeType == SqlElementTypes.SQL_FROM_CLAUSE ||
-                nodeType == SqlElementTypes.SQL_TABLE_REFERENCE) {
-
-                // Find identifiers within
-                for (child in e.children) {
-                    collectIdentifiersRecursive(child, references)
-                }
-            }
-
-            // Also check JOIN clauses
-            if (nodeType == SqlElementTypes.SQL_JOIN_EXPRESSION) {
+                nodeType == SqlElementTypes.SQL_TABLE_REFERENCE ||
+                nodeType == SqlElementTypes.SQL_JOIN_EXPRESSION) {
                 collectIdentifiersRecursive(e, references)
             }
 
-            // Recursively process children
             for (child in e.children) {
                 collectReferences(child)
             }
@@ -273,71 +237,57 @@ class SqlDependencyAnalyzer(
     }
 
     /**
-     * Builds highlight ranges like CtePopupExecutor does
-     * Uses the same logic to include WITH keyword, commas, etc.
+     * Builds highlight ranges
+     * Logic depends on whether target is a CTE or not
      */
-    private fun buildHighlightRanges(ctes: List<CteInfo>, targetQuery: PsiElement): List<TextRange> {
+    private fun buildHighlightRanges(
+        requiredCtes: List<CteEntry>,
+        targetQuery: PsiElement,
+        allCtes: List<CteEntry>
+    ): List<TextRange> {
         val ranges = mutableListOf<TextRange>()
 
-        if (ctes.isEmpty()) {
-            // No CTEs, just highlight the target query
+        if (requiredCtes.isEmpty()) {
             ranges.add(targetQuery.textRange)
             return ranges
         }
 
-        // Check if target is a CTE itself or something else (like main query/subselect)
         val targetIsCte = targetQuery.node?.elementType == SqlElementTypes.SQL_NAMED_QUERY_DEFINITION
 
         if (targetIsCte) {
-            // Target is a CTE - use maxIndex logic like CtePopupExecutor
-            val maxIndex = ctes.maxOfOrNull { it.index } ?: -1
+            // Target is a CTE - use CtePopupExecutor logic
+            val targetCte = requiredCtes.find { it.element == targetQuery }
+            val maxIndex = targetCte?.index ?: requiredCtes.maxOfOrNull { it.index } ?: -1
 
-            for (cte in ctes) {
-                val cteRanges = getCteHighlightRanges(cte.element, cte.index, maxIndex)
+            for (cte in requiredCtes) {
+                val cteRanges = getCteHighlightRanges(cte.element, cte.index, maxIndex, allCtes)
                 ranges.addAll(cteRanges)
             }
         } else {
-            // Target is NOT a CTE (main query or subselect)
-            // All required CTEs should be highlighted COMPLETELY (not just inner parts)
-            // They are all "previous" CTEs, so we treat them all the same
-
-            for ((idx, cte) in ctes.withIndex()) {
+            // Target is NOT a CTE (subselect or main query) - highlight all CTEs completely
+            for ((idx, cte) in requiredCtes.withIndex()) {
                 if (idx == 0) {
-                    // First CTE: include WITH keyword and the full CTE
+                    // First CTE: include WITH keyword
                     val parentChildren = cte.element.parent.children
                     val startWithIndex = parentChildren.indexOfFirst { it.elementType == SqlElementTypes.SQL_WITH }
-                    val endIndex = cte.element.textRange.endOffset
 
                     if (startWithIndex >= 0) {
                         val start = parentChildren[startWithIndex].textRange.startOffset
-                        ranges.add(TextRange(start, endIndex))
+                        val end = cte.element.textRange.endOffset
+                        ranges.add(TextRange(start, end))
                     } else {
                         ranges.add(cte.element.textRange)
                     }
 
-                    // Add comma after first CTE if there are more
-                    if (ctes.size > 1) {
-                        var curElement = cte.element.nextSibling
-                        while (curElement != null && curElement.elementType != SqlElementTypes.SQL_COMMA) {
-                            curElement = curElement.nextSibling
-                        }
-                        if (curElement != null) {
-                            ranges.add(curElement.textRange)
-                        }
+                    // Add comma if more CTEs follow
+                    if (requiredCtes.size > 1) {
+                        addCommaRange(cte.element, ranges)
                     }
                 } else {
                     // Other CTEs: full element + comma
                     ranges.add(cte.element.textRange)
-
-                    // Add comma if not last
-                    if (idx < ctes.size - 1) {
-                        var curElement = cte.element.nextSibling
-                        while (curElement != null && curElement.elementType != SqlElementTypes.SQL_COMMA) {
-                            curElement = curElement.nextSibling
-                        }
-                        if (curElement != null) {
-                            ranges.add(curElement.textRange)
-                        }
+                    if (idx < requiredCtes.size - 1) {
+                        addCommaRange(cte.element, ranges)
                     }
                 }
             }
@@ -350,13 +300,18 @@ class SqlDependencyAnalyzer(
     }
 
     /**
-     * Gets highlight ranges for a CTE (adapted from CtePopupExecutor.getCteElements)
+     * Gets highlight ranges for a CTE (from CtePopupExecutor logic)
      */
-    private fun getCteHighlightRanges(cteElement: PsiElement, index: Int, selectedIndex: Int): List<TextRange> {
+    private fun getCteHighlightRanges(
+        cteElement: PsiElement,
+        index: Int,
+        selectedIndex: Int,
+        allCtes: List<CteEntry>
+    ): List<TextRange> {
         val children = cteElement.children
         val elements = mutableListOf<PsiElement>()
 
-        // Special case: if first CTE is selected and there are others, include the "WITH" keyword
+        // First CTE with others: include WITH keyword
         if (index == 0 && selectedIndex > 0) {
             val parentChildren = cteElement.parent.children
             val startWithIndex = parentChildren.indexOfFirst { it.elementType == SqlElementTypes.SQL_WITH }
@@ -367,7 +322,7 @@ class SqlDependencyAnalyzer(
         }
 
         when {
-            // Selected CTE: include content inside parentheses (body)
+            // Selected CTE: only inner content (body)
             index == selectedIndex -> {
                 val startIndex = children.indexOfFirst { it.elementType == SqlElementTypes.SQL_LEFT_PAREN }
                 val endIndex = children.indexOfLast { it.elementType == SqlElementTypes.SQL_RIGHT_PAREN }
@@ -375,17 +330,16 @@ class SqlDependencyAnalyzer(
                     elements.addAll(children.filterIndexed { i, _ -> i in (startIndex + 1) until endIndex })
                 }
             }
-            // Next CTE after selected: include up to the closing parenthesis
+            // Next CTE after selected: up to closing paren
             index + 1 == selectedIndex -> {
                 val endIndex = children.indexOfLast { it.elementType == SqlElementTypes.SQL_RIGHT_PAREN }
                 if (endIndex >= 0) {
                     elements.addAll(children.filterIndexed { i, _ -> i <= endIndex })
                 }
             }
-            // Other CTEs: include the full element plus its following comma
+            // Other CTEs: full element + comma
             else -> {
                 elements.add(cteElement)
-
                 var curElement = cteElement.nextSibling
                 while (curElement != null && curElement.elementType != SqlElementTypes.SQL_COMMA) {
                     curElement = curElement.nextSibling
@@ -396,7 +350,6 @@ class SqlDependencyAnalyzer(
             }
         }
 
-        // Convert elements to text ranges
         if (elements.isEmpty()) {
             return listOf(cteElement.textRange)
         }
@@ -407,9 +360,22 @@ class SqlDependencyAnalyzer(
     }
 
     /**
-     * Builds the executable SQL from required CTEs and target query
+     * Helper to add comma range after a CTE
      */
-    private fun buildSql(ctes: List<CteInfo>, targetQuery: PsiElement): String {
+    private fun addCommaRange(cteElement: PsiElement, ranges: MutableList<TextRange>) {
+        var curElement = cteElement.nextSibling
+        while (curElement != null && curElement.elementType != SqlElementTypes.SQL_COMMA) {
+            curElement = curElement.nextSibling
+        }
+        if (curElement != null) {
+            ranges.add(curElement.textRange)
+        }
+    }
+
+    /**
+     * Builds the executable SQL
+     */
+    private fun buildSql(ctes: List<CteEntry>, targetQuery: PsiElement): String {
         val parts = mutableListOf<String>()
 
         if (ctes.isNotEmpty()) {
@@ -417,15 +383,10 @@ class SqlDependencyAnalyzer(
             parts.add(ctes.joinToString(",\n") { it.element.text })
         }
 
-        // Extract the actual query text
         val queryText = when (targetQuery.node?.elementType) {
             SqlElementTypes.SQL_NAMED_QUERY_DEFINITION -> {
-                // If targeting a CTE, select from it
                 val cteName = targetQuery.firstChild?.text ?: ""
                 "SELECT * FROM $cteName"
-            }
-            SqlElementTypes.SQL_SELECT_STATEMENT -> {
-                targetQuery.text
             }
             else -> targetQuery.text
         }

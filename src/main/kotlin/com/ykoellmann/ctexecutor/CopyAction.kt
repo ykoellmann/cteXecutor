@@ -4,10 +4,16 @@ import com.intellij.openapi.editor.Editor
 import java.awt.Toolkit
 import java.awt.datatransfer.StringSelection
 
-class CopyAction(override val title: String = "Copy CTE") : CteAction() {
+/**
+ * Copy CT-Query SQL Action
+ * Shows popup with all CTEs, copies selected one's SQL to clipboard
+ */
+class CopyAction : SqlActionBase() {
 
-    override fun handleSql(editor: Editor, sql: String) {
-        copyToClipboard(sql)
+    override val title: String = "Copy CTE"
+
+    override fun handleSelectedOption(editor: Editor, option: PopupOption) {
+        copyToClipboard(option.sql)
     }
 
     private fun copyToClipboard(text: String) {
