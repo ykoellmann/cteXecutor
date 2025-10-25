@@ -18,7 +18,9 @@ import com.intellij.openapi.util.TextRange
 import com.intellij.psi.PsiFile
 import com.intellij.psi.util.elementType
 import com.intellij.util.ui.JBUI
+import java.awt.BorderLayout
 import javax.swing.JLabel
+import javax.swing.JPanel
 
 /**
  * Base class for all SQL actions that show a popup with CTE/Query selection
@@ -94,20 +96,54 @@ abstract class SqlActionBase : AnAction() {
             .setResizable(true)
             .setMovable(true)
             .setRenderer { list, value, _, isSelected, _ ->
-                val label = JLabel(value)
-                label.border = JBUI.Borders.empty(6, 12)
+                // Find the option to get its SQL
+                val option = options.find { it.displayName == value }
 
-                if (isSelected) {
-                    label.background = list.selectionBackground
-                    label.foreground = list.selectionForeground
-                    label.isOpaque = true
+                // Outer transparent panel for spacing
+                val outerPanel = JPanel(BorderLayout())
+                outerPanel.isOpaque = false
+                outerPanel.border = JBUI.Borders.empty(2, 4, 2, 4)
+
+                // Inner panel that will hold the label and get colored background
+                val innerPanel = JPanel(BorderLayout())
+                innerPanel.border = JBUI.Borders.empty(4, 8, 4, 8)
+
+                val label = JLabel()
+
+                if (option != null) {
+                    // Clean up SQL: remove newlines, multiple spaces, trim
+                    val sqlPreview = option.sql
+                        .trim()
+                        .replace(Regex("\\s+"), " ") // Replace multiple whitespace with single space
+
+                    // Calculate max length including the name and separator
+                    val maxDisplayLength = 50
+                    val prefix = "$value: "
+                    val availableLength = maxDisplayLength - prefix.length
+
+                    // Format: "name: sql preview..."
+                    val displayText = if (sqlPreview.length > availableLength) {
+                        "$prefix${sqlPreview.take(availableLength)}..."
+                    } else {
+                        "$prefix$sqlPreview"
+                    }
+
+                    label.text = displayText
                 } else {
-                    label.background = list.background
-                    label.foreground = list.foreground
-                    label.isOpaque = true
+                    label.text = value
                 }
 
-                label
+                // Style - only the inner panel gets background
+                label.isOpaque = false
+                label.foreground = if (isSelected) list.selectionForeground else list.foreground
+
+                innerPanel.background = if (isSelected) list.selectionBackground else list.background
+                innerPanel.isOpaque = isSelected
+
+                innerPanel.add(label, BorderLayout.WEST)
+                outerPanel.add(innerPanel, BorderLayout.WEST)
+
+                outerPanel
             }
             .setItemSelectedCallback { displayName ->
                 val option = options.find { it.displayName == displayName }
@@ -122,7 +158,7 @@ abstract class SqlActionBase : AnAction() {
                 }
                 popup?.cancel()
             }
-            .setSelectedValue(displayNames.lastOrNull(), true)
+            .setSelectedValue(displayNames.lastOrNull(), true) // Select last option
             .createPopup()
 
         popup?.showInBestPositionFor(editor)
