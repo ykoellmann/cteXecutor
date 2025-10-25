@@ -1,4 +1,4 @@
-package com.ykoellmann.ctexecutor
+package com.ykoellmann.ctexecutor.notification
 
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.startup.ProjectActivity

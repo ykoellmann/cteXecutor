@@ -1,6 +1,7 @@
-package com.ykoellmann.ctexecutor
+package com.ykoellmann.ctexecutor.actions
 
 import com.intellij.openapi.actionSystem.AnAction
+import com.ykoellmann.ctexecutor.analyzer.SqlDependencyAnalyzer
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.editor.Editor

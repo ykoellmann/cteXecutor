@@ -1,4 +1,4 @@
-package com.ykoellmann.ctexecutor
+package com.ykoellmann.ctexecutor.analyzer
 
 import com.intellij.openapi.util.TextRange
 import com.intellij.psi.PsiElement

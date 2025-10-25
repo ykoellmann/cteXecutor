@@ -1,6 +1,7 @@
-package com.ykoellmann.ctexecutor
+package com.ykoellmann.ctexecutor.notification
 
 import com.intellij.notification.NotificationGroupManager
+import com.ykoellmann.ctexecutor.PluginInfo
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.components.PersistentStateComponent
 import com.intellij.openapi.components.State

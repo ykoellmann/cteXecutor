@@ -1,4 +1,4 @@
-package com.ykoellmann.ctexecutor
+package com.ykoellmann.ctexecutor.actions
 
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.editor.Editor

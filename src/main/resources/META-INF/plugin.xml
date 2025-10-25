@@ -17,13 +17,13 @@
     <extensions defaultExtensionNs="com.intellij">
         <notificationGroup id="cteExecutor.notifications"
                            displayType="BALLOON"/>
-        <applicationService serviceImplementation="com.ykoellmann.ctexecutor.UpdateNotificationService"/>
-        <postStartupActivity implementation="com.ykoellmann.ctexecutor.UpdateNotificationStartupActivity"/>
+        <applicationService serviceImplementation="com.ykoellmann.ctexecutor.notification.UpdateNotificationService"/>
+        <postStartupActivity implementation="com.ykoellmann.ctexecutor.notification.UpdateNotificationStartupActivity"/>
     </extensions>
 
     <actions>
         <action id="com.ykoellmann.ctexecutor.RunAction"
-                class="com.ykoellmann.ctexecutor.RunAction"
+                class="com.ykoellmann.ctexecutor.actions.RunAction"
                 text="Run CT-Query"
                 description="Execute the selected CTE SQL query">
             <add-to-group group-id="EditorPopupMenu" anchor="last"/>
@@ -31,7 +31,7 @@
         </action>
 
         <action id="com.ykoellmann.ctexecutor.CopyAction"
-                class="com.ykoellmann.ctexecutor.CopyAction"
+                class="com.ykoellmann.ctexecutor.actions.CopyAction"
                 text="Copy CT-Query SQL"
                 description="Copy the selected CTE SQL query to clipboard">
             <add-to-group group-id="EditorPopupMenu" anchor="last"/>
@@ -39,7 +39,7 @@
         </action>
 
         <action id="com.ykoellmann.ctexecutor.CopyAndEditAction"
-                class="com.ykoellmann.ctexecutor.CopyAndEditAction"
+                class="com.ykoellmann.ctexecutor.actions.CopyAndEditAction"
                 text="Edit and Run SQL"
                 description="Open a SQL editor dialog with full language support">
             <add-to-group group-id="EditorPopupMenu" anchor="last"/>
@@ -47,7 +47,7 @@
         </action>
 
         <action id="com.ykoellmann.ctexecutor.ExecuteFromHereAction"
-                class="com.ykoellmann.ctexecutor.ExecuteFromHereAction"
+                class="com.ykoellmann.ctexecutor.actions.ExecuteFromHereAction"
                 text="Execute from Here"
                 description="Execute SQL from current position with automatic dependency resolution">
             <add-to-group group-id="EditorPopupMenu" anchor="last"/>

@@ -1,6 +1,7 @@
-package com.ykoellmann.ctexecutor
+package com.ykoellmann.ctexecutor.actions
 
 import com.intellij.openapi.actionSystem.ActionManager
+import com.ykoellmann.ctexecutor.analyzer.SqlDependencyAnalyzer
 import com.intellij.openapi.actionSystem.ActionPlaces
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.command.WriteCommandAction
