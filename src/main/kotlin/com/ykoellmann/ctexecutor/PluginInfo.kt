@@ -1,7 +1,7 @@
 package com.ykoellmann.ctexecutor
 
 object PluginInfo {
-    const val VERSION = "2.0.0"
+    const val VERSION = "2.0.1"
 
     const val NOTIFICATION_CONTENT = """
         <b>cteXecutor Update $VERSION</b><br><br>
