@@ -2,6 +2,7 @@ package com.ykoellmann.ctexecutor.actions
 
 import com.intellij.openapi.actionSystem.AnAction
 import com.ykoellmann.ctexecutor.analyzer.SqlDependencyAnalyzer
+import com.ykoellmann.ctexecutor.analyzer.SqlBuilder
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.editor.Editor
@@ -17,7 +18,6 @@ import com.intellij.openapi.ui.popup.JBPopupListener
 import com.intellij.openapi.ui.popup.LightweightWindowEvent
 import com.intellij.openapi.util.TextRange
 import com.intellij.psi.PsiFile
-import com.intellij.psi.util.elementType
 import com.intellij.util.ui.JBUI
 import java.awt.BorderLayout
 import javax.swing.JLabel
@@ -25,7 +25,7 @@ import javax.swing.JPanel
 
 /**
  * Base class for all SQL actions that show a popup with CTE/Query selection
- * Uses SqlDependencyAnalyzer for unified analysis
+ * Uses SqlDependencyAnalyzer for PSI analysis and SqlBuilder for SQL/highlighting generation
  */
 abstract class SqlActionBase : AnAction() {
 
@@ -62,6 +62,8 @@ abstract class SqlActionBase : AnAction() {
     /**
      * Builds the list of options to show in the popup
      * Can be overridden by subclasses for different behavior
+     *
+     * Default behavior: Show all CTEs progressively (each includes all CTEs up to it)
      */
     protected open fun buildPopupOptions(result: SqlDependencyAnalyzer.AnalysisResult): List<PopupOption> {
         val options = mutableListOf<PopupOption>()
@@ -70,15 +72,19 @@ abstract class SqlActionBase : AnAction() {
         for (cte in result.allCtes) {
             // Build SQL for this CTE: include all CTEs up to and including this one
             val ctesUpToThis = result.allCtes.filter { it.index <= cte.index }
-            val sql = buildSqlForCtes(ctesUpToThis, cte.element)
 
-            // Build highlight ranges for this option
-            val highlightRanges = buildHighlightRangesForCte(cte, result.allCtes)
+            // Use SqlBuilder to generate SQL and highlighting
+            val buildResult = SqlBuilder.build(
+                ctes = ctesUpToThis,
+                targetQuery = cte.element,
+                allCtes = result.allCtes,
+                mode = SqlBuilder.HighlightMode.PROGRESSIVE_CTE
+            )
 
             options.add(PopupOption(
                 displayName = cte.name,
-                sql = sql,
-                highlightRanges = highlightRanges
+                sql = buildResult.sql,
+                highlightRanges = buildResult.highlightRanges
             ))
         }
 
@@ -200,132 +206,6 @@ abstract class SqlActionBase : AnAction() {
             editor.markupModel.removeHighlighter(highlighter)
         }
         highlighters.clear()
-    }
-
-    /**
-     * Builds SQL for the given CTEs
-     */
-    protected fun buildSqlForCtes(
-        ctes: List<SqlDependencyAnalyzer.CteEntry>,
-        targetCte: com.intellij.psi.PsiElement
-    ): String {
-        val parts = mutableListOf<String>()
-
-        if (ctes.isNotEmpty()) {
-            // Build WITH clause
-            val cteTexts = mutableListOf<String>()
-            for ((idx, cte) in ctes.withIndex()) {
-                if (idx < ctes.size - 1) {
-                    // Not the selected one: full text
-                    cteTexts.add(cte.element.text)
-                } else {
-                    // Selected CTE: extract inner SELECT
-                    val children = cte.element.children
-                    val startIndex = children.indexOfFirst {
-                        it.elementType == com.intellij.sql.psi.SqlElementTypes.SQL_LEFT_PAREN
-                    }
-                    val endIndex = children.indexOfLast {
-                        it.elementType == com.intellij.sql.psi.SqlElementTypes.SQL_RIGHT_PAREN
-                    }
-
-                    if (startIndex >= 0 && endIndex >= 0) {
-                        val innerElements = children.filterIndexed { i, _ -> i in (startIndex + 1) until endIndex }
-                        cteTexts.add(cte.element.text) // Still add full CTE text
-                    } else {
-                        cteTexts.add(cte.element.text)
-                    }
-                }
-            }
-
-            parts.add("WITH")
-            parts.add(cteTexts.joinToString(",\n"))
-        }
-
-        // Add SELECT from the target CTE
-        val targetCteName = targetCte.firstChild?.text ?: ""
-        parts.add("SELECT * FROM $targetCteName")
-
-        val sql = parts.joinToString("\n")
-        return if (sql.trim().endsWith(";")) sql else "$sql;"
-    }
-
-    /**
-     * Builds highlight ranges for a specific CTE option
-     */
-    private fun buildHighlightRangesForCte(
-        targetCte: SqlDependencyAnalyzer.CteEntry,
-        allCtes: List<SqlDependencyAnalyzer.CteEntry>
-    ): List<TextRange> {
-        val ranges = mutableListOf<TextRange>()
-
-        // Get all CTEs up to and including the target
-        val ctesUpToTarget = allCtes.filter { it.index <= targetCte.index }
-
-        for ((idx, cte) in ctesUpToTarget.withIndex()) {
-            val children = cte.element.children
-
-            // First CTE: include WITH keyword
-            if (idx == 0 && ctesUpToTarget.size > 1) {
-                val parentChildren = cte.element.parent.children
-                val startWithIndex = parentChildren.indexOfFirst {
-                    it.elementType == com.intellij.sql.psi.SqlElementTypes.SQL_WITH
-                }
-                val endWhitespaceIndex = parentChildren.indexOfFirst {
-                    it.elementType == com.intellij.sql.psi.SqlElementTypes.WHITE_SPACE
-                }
-                if (startWithIndex >= 0 && endWhitespaceIndex >= 0) {
-                    val start = parentChildren[startWithIndex].textRange.startOffset
-                    val end = parentChildren[endWhitespaceIndex].textRange.endOffset
-                    ranges.add(TextRange(start, end))
-                }
-            }
-
-            when {
-                // Target CTE: only inner part
-                cte.index == targetCte.index -> {
-                    val startIndex = children.indexOfFirst {
-                        it.elementType == com.intellij.sql.psi.SqlElementTypes.SQL_LEFT_PAREN
-                    }
-                    val endIndex = children.indexOfLast {
-                        it.elementType == com.intellij.sql.psi.SqlElementTypes.SQL_RIGHT_PAREN
-                    }
-                    if (startIndex >= 0 && endIndex >= 0) {
-                        val innerElements = children.filterIndexed { i, _ -> i in (startIndex + 1) until endIndex }
-                        if (innerElements.isNotEmpty()) {
-                            val start = innerElements.minOf { it.textRange.startOffset }
-                            val end = innerElements.maxOf { it.textRange.endOffset }
-                            ranges.add(TextRange(start, end))
-                        }
-                    }
-                }
-                // Next CTE after target: up to closing paren
-                cte.index + 1 == targetCte.index -> {
-                    val endIndex = children.indexOfLast {
-                        it.elementType == com.intellij.sql.psi.SqlElementTypes.SQL_RIGHT_PAREN
-                    }
-                    if (endIndex >= 0) {
-                        val elements = children.filterIndexed { i, _ -> i <= endIndex }
-                        val start = elements.minOf { it.textRange.startOffset }
-                        val end = elements.maxOf { it.textRange.endOffset }
-                        ranges.add(TextRange(start, end))
-                    }
-                }
-                // Other CTEs: full element + comma
-                else -> {
-                    ranges.add(cte.element.textRange)
-
-                    var curElement = cte.element.nextSibling
-                    while (curElement != null && curElement.elementType != com.intellij.sql.psi.SqlElementTypes.SQL_COMMA) {
-                        curElement = curElement.nextSibling
-                    }
-                    if (curElement != null) {
-                        ranges.add(curElement.textRange)
-                    }
-                }
-            }
-        }
-
-        return ranges
     }
 
     /**

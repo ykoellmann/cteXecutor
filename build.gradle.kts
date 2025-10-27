@@ -5,7 +5,6 @@ plugins {
 }
 
 group = "com.ykoellmann.ctexecutor"
-version = "2.0.0"
 
 repositories {
     mavenCentral()
@@ -22,50 +21,33 @@ dependencies {
     }
 }
 
-// Read version and change notes from PluginInfo.kt
-fun readPluginInfo(): Map<String, String> {
-    val pluginInfoFile = file("src/main/kotlin/com/ykoellmann/ctexecutor/PluginInfo.kt")
-    if (!pluginInfoFile.exists()) {
-        return mapOf("version" to version.toString(), "changeNotes" to "", "description" to "")
-    }
-
-    val content = pluginInfoFile.readText()
-
-    val versionPattern = """const\s+val\s+VERSION\s*=\s*"([^"]+)"""".toRegex()
-    val extractedVersion = versionPattern.find(content)?.groupValues?.get(1) ?: version.toString()
-
-    val changeNotesPattern = """const\s+val\s+CHANGE_NOTES\s*=\s*"{3}([\s\S]*?)"{3}""".toRegex()
-    val changeNotes = changeNotesPattern.find(content)?.groupValues?.get(1)?.trim() ?: ""
-
-    val descriptionPattern = """const\s+val\s+DESCRIPTION\s*=\s*"{3}([\s\S]*?)"{3}""".toRegex()
-    val description = descriptionPattern.find(content)?.groupValues?.get(1)?.trim() ?: ""
-
-    return mapOf(
-        "version" to extractedVersion,
-        "changeNotes" to changeNotes,
-        "description" to description
-    )
-}
-
-val pluginInfo = readPluginInfo()
-
 intellijPlatform {
     pluginConfiguration {
-        version = pluginInfo["version"]
+        version = project.version.toString()
 
         ideaVersion {
             sinceBuild = "242"
         }
 
-        // Automatically patch change notes from PluginInfo.kt
-        changeNotes = pluginInfo["changeNotes"] ?: ""
+        // Change notes will be read from PluginInfo.kt at task execution time
+        changeNotes = providers.fileContents(
+            layout.projectDirectory.file("src/main/kotlin/com/ykoellmann/ctexecutor/PluginInfo.kt")
+        ).asText.map { content ->
+            val changeNotesPattern = """const\s+val\s+CHANGE_NOTES\s*=\s*"{3}([\s\S]*?)"{3}""".toRegex()
+            changeNotesPattern.find(content)?.groupValues?.get(1)?.trim() ?: ""
+        }
 
-        // Automatically patch description from PluginInfo.kt
-        description = pluginInfo["description"] ?: """
-            Execute and manage Common Table Expressions (CTEs) easily in DataGrip and IntelliJ-based IDEs.
-            Highlights CTEs and allows selective execution of composed queries.
-            Efficient, intuitive, and developer-friendly.
-        """.trimIndent()
+        // Description will be read from PluginInfo.kt at task execution time
+        description = providers.fileContents(
+            layout.projectDirectory.file("src/main/kotlin/com/ykoellmann/ctexecutor/PluginInfo.kt")
+        ).asText.map { content ->
+            val descriptionPattern = """const\s+val\s+DESCRIPTION\s*=\s*"{3}([\s\S]*?)"{3}""".toRegex()
+            descriptionPattern.find(content)?.groupValues?.get(1)?.trim() ?: """
+                Execute and manage Common Table Expressions (CTEs) easily in DataGrip and IntelliJ-based IDEs.
+                Highlights CTEs and allows selective execution of composed queries.
+                Efficient, intuitive, and developer-friendly.
+            """.trimIndent()
+        }
     }
 }
 
@@ -75,14 +57,8 @@ tasks {
         targetCompatibility = "21"
     }
     withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
-        kotlinOptions.jvmTarget = "21"
-    }
-
-    // Print info when building
-    named("patchPluginXml") {
-        doFirst {
-            println("📦 Building cteXecutor ${pluginInfo["version"]}")
-            println("   Version will be automatically patched into plugin.xml")
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
         }
     }
 }

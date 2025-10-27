@@ -1,13 +1,9 @@
 package com.ykoellmann.ctexecutor.actions
 
-import com.intellij.openapi.actionSystem.ActionManager
 import com.ykoellmann.ctexecutor.analyzer.SqlDependencyAnalyzer
-import com.intellij.openapi.actionSystem.ActionPlaces
-import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.command.WriteCommandAction
+import com.ykoellmann.ctexecutor.analyzer.SqlBuilder
 import com.intellij.openapi.editor.Editor
-import com.intellij.openapi.util.TextRange
-import com.intellij.psi.util.elementType
+import com.intellij.sql.psi.SqlElementTypes
 
 /**
  * Execute from Here Action
@@ -29,113 +25,68 @@ class ExecuteFromHereAction : SqlActionBase() {
     override fun buildPopupOptions(result: SqlDependencyAnalyzer.AnalysisResult): List<PopupOption> {
         val options = mutableListOf<PopupOption>()
 
-        // Options 1-N: Each required CTE (in normal order)
-        for (cte in result.requiredCtes) {
-            val sql = buildSqlForCtes(listOf(cte), cte.element)
-            val highlightRanges = buildHighlightRangesForSingleCte(cte, result.allCtes)
+        // Options 1-N: Each required CTE WITH ALL ITS DEPENDENCIES
+        for (i in result.requiredCtes.indices) {
+            val cte = result.requiredCtes[i]
+
+            // Get all CTEs up to and including this one (dependencies in order)
+            val ctesUpToHere = result.requiredCtes.subList(0, i + 1)
+
+            // Use SqlBuilder to generate SQL and highlighting
+            // DEPENDENCIES_WITH_TARGET_INNER mode:
+            // - Dependencies (all except target) are shown completely with WITH, names, parentheses
+            // - Target CTE shows only inner SELECT
+            // - SQL generated: WITH [dependencies] + [target's inner SELECT]
+            val buildResult = SqlBuilder.build(
+                ctes = ctesUpToHere,
+                targetQuery = cte.element,
+                allCtes = result.allCtes,
+                mode = SqlBuilder.HighlightMode.DEPENDENCIES_WITH_TARGET_INNER
+            )
 
             options.add(PopupOption(
-                displayName = cte.name,
-                sql = sql,
-                highlightRanges = highlightRanges
+                displayName = buildDisplayName(cte, ctesUpToHere.size - 1),
+                sql = buildResult.sql,
+                highlightRanges = buildResult.highlightRanges
             ))
         }
 
         // Last Option: Current query at cursor (with all dependencies) - AT BOTTOM
-        val currentQueryName = if (result.targetQuery.node?.elementType ==
-            com.intellij.sql.psi.SqlElementTypes.SQL_NAMED_QUERY_DEFINITION) {
+        val currentQueryName = if (result.targetQuery.node?.elementType == SqlElementTypes.SQL_NAMED_QUERY_DEFINITION) {
             result.targetQuery.firstChild?.text ?: "Current CTE"
         } else {
             "Current Query"
         }
 
+        // Use SqlBuilder for the full query with all dependencies
+        val fullBuildResult = SqlBuilder.build(
+            ctes = result.requiredCtes,
+            targetQuery = result.targetQuery,
+            allCtes = result.allCtes,
+            mode = SqlBuilder.HighlightMode.FULL_CTE
+        )
+
         options.add(PopupOption(
             displayName = "$currentQueryName (${result.requiredCtes.size} CTE${if (result.requiredCtes.size != 1) "s" else ""})",
-            sql = result.fullSql,
-            highlightRanges = result.highlightRanges
+            sql = fullBuildResult.sql,
+            highlightRanges = fullBuildResult.highlightRanges
         ))
 
         return options
     }
 
     /**
-     * Builds highlight ranges for a single CTE
-     * Only highlights the inner SELECT part, not the full CTE definition
+     * Builds display name showing CTE name and number of dependencies
      */
-    private fun buildHighlightRangesForSingleCte(
-        cte: SqlDependencyAnalyzer.CteEntry,
-        allCtes: List<SqlDependencyAnalyzer.CteEntry>
-    ): List<TextRange> {
-        val ranges = mutableListOf<TextRange>()
-        val children = cte.element.children
-
-        // Find the inner SELECT (between parentheses)
-        val startIndex = children.indexOfFirst {
-            it.elementType == com.intellij.sql.psi.SqlElementTypes.SQL_LEFT_PAREN
-        }
-        val endIndex = children.indexOfLast {
-            it.elementType == com.intellij.sql.psi.SqlElementTypes.SQL_RIGHT_PAREN
-        }
-
-        if (startIndex >= 0 && endIndex >= 0 && startIndex + 1 < endIndex) {
-            // Get elements between parentheses (the actual SELECT)
-            val innerElements = children.filterIndexed { i, _ -> i in (startIndex + 1) until endIndex }
-            if (innerElements.isNotEmpty()) {
-                val start = innerElements.minOf { it.textRange.startOffset }
-                val end = innerElements.maxOf { it.textRange.endOffset }
-                ranges.add(com.intellij.openapi.util.TextRange(start, end))
-            }
+    private fun buildDisplayName(cte: SqlDependencyAnalyzer.CteEntry, dependencyCount: Int): String {
+        return if (dependencyCount > 0) {
+            "${cte.name} (+ $dependencyCount CTE${if (dependencyCount != 1) "s" else ""})"
         } else {
-            // Fallback: highlight full CTE if we can't find parentheses
-            ranges.add(cte.element.textRange)
+            cte.name
         }
-
-        return ranges
     }
 
     override fun handleSelectedOption(editor: Editor, option: PopupOption) {
-        executeSql(editor, option.sql)
-    }
-
-    private fun executeSql(editor: Editor, sql: String) {
-        val project = editor.project ?: return
-        val document = editor.document
-
-        val runnable = Runnable {
-            val insertionPoint = document.textLength
-
-            WriteCommandAction.runWriteCommandAction(project) {
-                document.insertString(insertionPoint, "\n$sql")
-            }
-
-            val offset = editor.caretModel.offset
-            val start = insertionPoint
-            val end = insertionPoint + sql.length + 1
-
-            editor.caretModel.moveToOffset(end)
-            editor.selectionModel.setSelection(start, end)
-
-            val action = ActionManager.getInstance().getAction("Console.Jdbc.Execute")
-            if (action != null) {
-                ActionManager.getInstance().tryToExecute(
-                    action,
-                    null,
-                    editor.component,
-                    ActionPlaces.UNKNOWN,
-                    true
-                )
-            }
-
-            ApplicationManager.getApplication().invokeLater {
-                WriteCommandAction.runWriteCommandAction(project) {
-                    document.deleteString(start, document.textLength)
-                }
-                editor.selectionModel.removeSelection()
-            }
-
-            editor.caretModel.moveToOffset(offset)
-        }
-
-        ApplicationManager.getApplication().invokeLater(runnable)
+        SqlExecutor.executeSqlSeamlessly(editor, option.sql)
     }
 }
