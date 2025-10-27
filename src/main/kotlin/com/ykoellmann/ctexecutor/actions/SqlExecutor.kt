@@ -68,8 +68,8 @@ object SqlExecutor {
                     null
                 )
 
-                // Then pass it to ActionUtil
-                ActionUtil.performActionDumbAwareWithCallbacks(executeAction, event)
+                // Then invoke the action directly
+                executeAction.actionPerformed(event)
 
                 // 4. Remove the inserted SQL after execution (without undo history)
                 ApplicationManager.getApplication().invokeLater {

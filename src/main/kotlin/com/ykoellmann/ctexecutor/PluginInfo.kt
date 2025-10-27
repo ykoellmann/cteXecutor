@@ -3,8 +3,15 @@ package com.ykoellmann.ctexecutor
 object PluginInfo {
     const val VERSION = "2.0.1"
 
+    /**
+     * Version for which the notification should be shown.
+     * Only update this when you want users to see the notification again.
+     * For bugfix releases, you can keep this the same to avoid re-showing notifications.
+     */
+    const val NOTIFICATION_VERSION = "2.0.0"
+
     const val NOTIFICATION_CONTENT = """
-        <b>cteXecutor Update $VERSION</b><br><br>
+        <b>cteXecutor Update $NOTIFICATION_VERSION</b><br><br>
         
         <b>🎉 New Feature:</b><br>
         • <b>Execute From Here:</b> Execute not only CTEs but also any subselects in CTEs or in the final SQL that have other CTEs as dependencies<br>
@@ -22,6 +29,12 @@ object PluginInfo {
     """
 
     const val CHANGE_NOTES = """
+        <h3>Version 2.0.1</h3>
+        <ul>
+            <li>Fix problems of new ExecuteFromHere, where execution of dependencies did not properly work</li>
+            <li>Fix problem of execution being part of the do and undo process of IDE, which lead to problems</li>
+            <li>Upgrade necessary version</li>
+        </ul>
         <h3>Version 2.0.0</h3>
         <ul>
             <li><strong>NEW:</strong> "Execute from Here" action with smart dependency resolution</li>

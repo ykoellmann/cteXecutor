@@ -35,10 +35,10 @@ class UpdateNotificationService : PersistentStateComponent<UpdateNotificationSer
         fun showUpdateNotificationIfNeeded(project: Project?) {
             val service = getInstance()
 
-            // Nur anzeigen, wenn die Version noch nicht angezeigt wurde
-            if (service.state.lastShownVersion != PluginInfo.VERSION) {
+            // Nur anzeigen, wenn die Notification-Version noch nicht angezeigt wurde
+            if (service.state.lastShownVersion != PluginInfo.NOTIFICATION_VERSION) {
                 showUpdateNotification(project)
-                service.state.lastShownVersion = PluginInfo.VERSION
+                service.state.lastShownVersion = PluginInfo.NOTIFICATION_VERSION
             }
         }
 

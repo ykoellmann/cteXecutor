@@ -6,6 +6,14 @@ plugins {
 
 group = "com.ykoellmann.ctexecutor"
 
+// Read version from PluginInfo.kt
+version = file("src/main/kotlin/com/ykoellmann/ctexecutor/PluginInfo.kt")
+    .readText()
+    .let { content ->
+        """const\s+val\s+VERSION\s*=\s*"([^"]+)"""".toRegex()
+            .find(content)?.groupValues?.get(1) ?: "1.0.0"
+    }
+
 repositories {
     mavenCentral()
     intellijPlatform {
@@ -23,10 +31,11 @@ dependencies {
 
 intellijPlatform {
     pluginConfiguration {
+        // Use version from project (already read from PluginInfo.kt)
         version = project.version.toString()
 
         ideaVersion {
-            sinceBuild = "242"
+            sinceBuild = "243"
         }
 
         // Change notes will be read from PluginInfo.kt at task execution time
