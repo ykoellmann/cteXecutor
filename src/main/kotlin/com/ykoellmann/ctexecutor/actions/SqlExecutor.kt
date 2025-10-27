@@ -3,8 +3,8 @@ package com.ykoellmann.ctexecutor.actions
 import com.intellij.ide.DataManager
 import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.ActionPlaces
-import com.intellij.openapi.actionSystem.ActionUiKind
 import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.ActionUiKind
 import com.intellij.openapi.actionSystem.ex.ActionUtil
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.editor.Editor
@@ -58,18 +58,16 @@ object SqlExecutor {
                 val dataContext = DataManager.getInstance()
                     .getDataContext(editor.contentComponent)
 
-                // Create the event first
+                // Create event using the modern, non-deprecated API
                 val event = AnActionEvent.createEvent(
                     executeAction,
                     dataContext,
-                    null,
+                    null,  // presentation
                     ActionPlaces.UNKNOWN,
                     ActionUiKind.NONE,
-                    null
+                    null   // inputEvent
                 )
-
-                // Then invoke the action directly
-                executeAction.actionPerformed(event)
+                ActionUtil.invokeAction(executeAction, event, null)
 
                 // 4. Remove the inserted SQL after execution (without undo history)
                 ApplicationManager.getApplication().invokeLater {
