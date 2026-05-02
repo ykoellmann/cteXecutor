@@ -1,7 +1,7 @@
 plugins {
     id("java")
-    id("org.jetbrains.kotlin.jvm") version "2.1.21"
-    id("org.jetbrains.intellij.platform") version "2.3.0"
+    id("org.jetbrains.kotlin.jvm") version "2.2.20"
+    id("org.jetbrains.intellij.platform") version "2.10.5"
     id("org.jetbrains.changelog") version "2.2.1"
 }
 
@@ -24,7 +24,7 @@ repositories {
 
 dependencies {
     intellijPlatform {
-        create("DB", "2025.1.3")
+        create("DB", "2026.1.2")
         testFramework(org.jetbrains.intellij.platform.gradle.TestFrameworkType.Platform)
         bundledPlugin("com.intellij.database")
     }
@@ -64,17 +64,11 @@ intellijPlatform {
     }
 }
 
-tasks {
-    withType<JavaCompile> {
-        sourceCompatibility = "21"
-        targetCompatibility = "21"
-    }
-    withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
-        compilerOptions {
-            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
-        }
-    }
+kotlin {
+    jvmToolchain(21)
+}
 
+tasks {
     signPlugin {
         certificateChain = System.getenv("CERTIFICATE_CHAIN")
         privateKey = System.getenv("PRIVATE_KEY")

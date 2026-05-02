@@ -57,32 +57,60 @@ abstract class SqlActionBase : AnAction() {
         showPopup(editor, options)
     }
 
-    /**
-     * Builds the list of options to show in the popup
-     * Can be overridden by subclasses for different behavior
-     *
-     * Default behavior: Show all CTEs progressively (each includes all CTEs up to it)
-     */
     protected open fun buildPopupOptions(context: SqlAnalyzer.SqlContext): List<PopupOption> {
         val options = mutableListOf<PopupOption>()
 
-        for (cte in context.allCtes) {
-            val ctesUpToThis = context.allCtes.filter { it.index <= cte.index }
+        for (i in context.requiredCtes.indices) {
+            val cte = context.requiredCtes[i]
+            val ctesUpToHere = context.requiredCtes.subList(0, i + 1)
             val buildResult = SqlBuilder.build(
-                ctes = ctesUpToThis,
+                ctes = ctesUpToHere,
                 targetQuery = cte.element,
                 allCtes = context.allCtes,
-                mode = SqlBuilder.HighlightMode.PROGRESSIVE_CTE
+                mode = SqlBuilder.HighlightMode.DEPENDENCIES_WITH_TARGET_INNER
             )
             options.add(PopupOption(
-                displayName = cte.name,
+                displayName = buildDisplayName(cte, ctesUpToHere.size - 1),
                 sql = buildResult.sql,
                 highlightRanges = buildResult.highlightRanges
             ))
         }
 
+        val activeCte = (context.cursorScope as? SqlAnalyzer.CursorScope.InsideCte)?.cte
+        val currentQueryName = activeCte?.name ?: "Current Query"
+
+        val (finalCtes, finalTarget, finalMode) = if (activeCte != null) {
+            Triple(
+                context.requiredCtes + listOf(activeCte),
+                activeCte.element,
+                SqlBuilder.HighlightMode.DEPENDENCIES_WITH_TARGET_INNER
+            )
+        } else {
+            Triple(
+                context.requiredCtes,
+                context.targetQuery,
+                SqlBuilder.HighlightMode.FULL_CTE
+            )
+        }
+
+        val fullBuildResult = SqlBuilder.build(
+            ctes = finalCtes,
+            targetQuery = finalTarget,
+            allCtes = context.allCtes,
+            mode = finalMode
+        )
+        options.add(PopupOption(
+            displayName = "$currentQueryName (${context.requiredCtes.size} CTE${if (context.requiredCtes.size != 1) "s" else ""})",
+            sql = fullBuildResult.sql,
+            highlightRanges = fullBuildResult.highlightRanges
+        ))
+
         return options
     }
+
+    private fun buildDisplayName(cte: SqlAnalyzer.CteEntry, dependencyCount: Int): String =
+        if (dependencyCount > 0) "${cte.name} (+ $dependencyCount CTE${if (dependencyCount != 1) "s" else ""})"
+        else cte.name
 
     /**
      * Shows the popup with the given options

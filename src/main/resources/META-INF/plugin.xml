@@ -22,11 +22,12 @@
     </extensions>
 
     <actions>
-        <action id="com.ykoellmann.ctexecutor.RunAction"
-                class="com.ykoellmann.ctexecutor.actions.RunAction"
-                text="Run CT-Query"
-                description="Execute the selected CTE SQL query">
+        <action id="com.ykoellmann.ctexecutor.ExecuteFromHereAction"
+                class="com.ykoellmann.ctexecutor.actions.ExecuteFromHereAction"
+                text="Execute from Here"
+                description="Execute SQL from current position with automatic dependency resolution">
             <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+            <keyboard-shortcut keymap="$default" first-keystroke="ctrl NUMBER_SIGN" second-keystroke="ENTER"/>
             <keyboard-shortcut keymap="$default" first-keystroke="ctrl NUMBER_SIGN" second-keystroke="SPACE"/>
         </action>
 
@@ -44,14 +45,6 @@
                 description="Open a SQL editor dialog with full language support">
             <add-to-group group-id="EditorPopupMenu" anchor="last"/>
             <keyboard-shortcut keymap="$default" first-keystroke="ctrl NUMBER_SIGN" second-keystroke="W"/>
-        </action>
-
-        <action id="com.ykoellmann.ctexecutor.ExecuteFromHereAction"
-                class="com.ykoellmann.ctexecutor.actions.ExecuteFromHereAction"
-                text="Execute from Here"
-                description="Execute SQL from current position with automatic dependency resolution">
-            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
-            <keyboard-shortcut keymap="$default" first-keystroke="ctrl NUMBER_SIGN" second-keystroke="ENTER"/>
         </action>
     </actions>
 
