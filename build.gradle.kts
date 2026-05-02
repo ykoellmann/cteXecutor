@@ -2,6 +2,7 @@ plugins {
     id("java")
     id("org.jetbrains.kotlin.jvm") version "2.1.21"
     id("org.jetbrains.intellij.platform") version "2.3.0"
+    id("org.jetbrains.changelog") version "2.2.1"
 }
 
 group = "com.ykoellmann.ctexecutor"
@@ -29,24 +30,27 @@ dependencies {
     }
 }
 
+changelog {
+    version = project.version.toString()
+    groups = listOf("feat", "fix", "break")
+    repositoryUrl = "https://github.com/ykoellmann/ctexecutor"
+}
+
 intellijPlatform {
     pluginConfiguration {
-        // Use version from project (already read from PluginInfo.kt)
         version = project.version.toString()
 
         ideaVersion {
             sinceBuild = "243"
         }
 
-        // Change notes will be read from PluginInfo.kt at task execution time
-        changeNotes = providers.fileContents(
-            layout.projectDirectory.file("src/main/kotlin/com/ykoellmann/ctexecutor/PluginInfo.kt")
-        ).asText.map { content ->
-            val changeNotesPattern = """const\s+val\s+CHANGE_NOTES\s*=\s*"{3}([\s\S]*?)"{3}""".toRegex()
-            changeNotesPattern.find(content)?.groupValues?.get(1)?.trim() ?: ""
+        changeNotes = provider {
+            changelog.renderItem(
+                changelog.getOrNull(project.version.toString()) ?: changelog.getUnreleased(),
+                org.jetbrains.changelog.Changelog.OutputType.HTML
+            )
         }
 
-        // Description will be read from PluginInfo.kt at task execution time
         description = providers.fileContents(
             layout.projectDirectory.file("src/main/kotlin/com/ykoellmann/ctexecutor/PluginInfo.kt")
         ).asText.map { content ->
@@ -69,5 +73,15 @@ tasks {
         compilerOptions {
             jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
         }
+    }
+
+    signPlugin {
+        certificateChain = System.getenv("CERTIFICATE_CHAIN")
+        privateKey = System.getenv("PRIVATE_KEY")
+        password = System.getenv("PRIVATE_KEY_PASSWORD")
+    }
+
+    publishPlugin {
+        token = System.getenv("PUBLISH_TOKEN")
     }
 }
