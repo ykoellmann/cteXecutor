@@ -1,34 +1,46 @@
 package com.ykoellmann.ctexecutor
 
 object PluginInfo {
-    const val VERSION = "2.0.1"
+    const val VERSION = "3.0.0"
 
     /**
      * Version for which the notification should be shown.
      * Only update this when you want users to see the notification again.
      * For bugfix releases, you can keep this the same to avoid re-showing notifications.
      */
-    const val NOTIFICATION_VERSION = "2.0.0"
+    const val NOTIFICATION_VERSION = "3.0.0"
 
     const val NOTIFICATION_CONTENT = """
         <b>cteXecutor Update $NOTIFICATION_VERSION</b><br><br>
         
-        <b>🎉 New Feature:</b><br>
-        • <b>Execute From Here:</b> Execute not only CTEs but also any subselects in CTEs or in the final SQL that have other CTEs as dependencies<br>
-        • Execute queries starting from any subselect with all required dependencies included<br><br>
+        <b>Execute from Here Improvements:</b><br>
+        • Execute from Here now correctly detects cursor position inside UNION branches<br>
+        • Inline subselects, such as derived tables in JOIN clauses, can now be executed as independent targets<br>
+        • CTE dependency analysis is more accurate, including UNION branches and case-insensitive CTE references<br><br>
         
-        <b>⚡ Shortcut Changes:</b><br>
-        • <b>Run CT-Query:</b> Ctrl+# → <s>Enter</s> <b>Space</b> (changed)<br>
-        • <b>Execute From Here:</b> Ctrl+# → <b>Enter</b> (new - took over the previous Run shortcut)<br>
-        • <b>Copy CT-Query:</b> Ctrl+# → C (unchanged)<br>
-        • <b>Edit and Run SQL:</b> Ctrl+# → W (unchanged)<br><br>
+        <b>Fixes:</b><br>
+        • Cursor positions on closing brackets or CTE-boundary whitespace now resolve to the correct enclosing CTE<br>
+        • CTEs with column lists are detected more reliably<br>
+        • Final CTE execution now uses the CTE body directly instead of generating SELECT * FROM cte_name<br><br>
         
-        <b>🔧 Improvements:</b><br>
-        • Enhanced subselect detection and dependency resolution<br>
-        • More flexible query execution options
+        <b>⚠️ Change:</b><br>
+        • The separate Run CT-Query action has been removed in favor of the unified Execute from Here action
     """
 
     const val CHANGE_NOTES = """
+        <h3>Version 3.0.0</h3>
+        <ul>
+            <li><strong>NEW:</strong> Execute from Here now correctly detects cursor position inside UNION branches and executes only the selected branch with its required dependencies</li>
+            <li><strong>NEW:</strong> Execute from Here now detects cursor inside inline subselects, such as derived tables in JOIN clauses, and offers them as independent execution targets</li>
+            <li><strong>IMPROVED:</strong> Execute from Here is now the primary CTE execution action and also handles the previous CT-query execution flow</li>
+            <li><strong>FIXED:</strong> Cursor positions on closing brackets or whitespace at CTE boundaries now resolve to the enclosing CTE instead of falling through to the outer query</li>
+            <li><strong>FIXED:</strong> CTE name extraction now handles column-list CTEs more reliably</li>
+            <li><strong>FIXED:</strong> Dependency analysis for UNION CTEs now covers all branches instead of only the first one</li>
+            <li><strong>FIXED:</strong> Execute from Here final option now extracts the CTE body as the main query instead of generating SELECT * FROM cte_name</li>
+            <li><strong>FIXED:</strong> CTE name matching is now case-insensitive</li>
+            <li><strong>CHANGED:</strong> Removed the separate Run CT-Query action in favor of the unified Execute from Here action</li>
+            <li><strong>UPDATED:</strong> Upgraded Kotlin, IntelliJ Platform Gradle plugin, target IntelliJ database platform, and Gradle wrapper versions</li>
+        </ul>
         <h3>Version 2.0.1</h3>
         <ul>
             <li>Fix problems of new ExecuteFromHere, where execution of dependencies did not properly work</li>
