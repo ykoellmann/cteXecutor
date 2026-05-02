@@ -59,9 +59,9 @@ object SqlBuilder {
      * @return BuildResult with SQL and highlight ranges
      */
     fun build(
-        ctes: List<SqlDependencyAnalyzer.CteEntry>,
+        ctes: List<SqlAnalyzer.CteEntry>,
         targetQuery: PsiElement,
-        allCtes: List<SqlDependencyAnalyzer.CteEntry> = ctes,
+        allCtes: List<SqlAnalyzer.CteEntry> = ctes,
         mode: HighlightMode = HighlightMode.FULL_CTE
     ): BuildResult {
         val sql = buildSql(ctes, targetQuery, mode)
@@ -73,7 +73,7 @@ object SqlBuilder {
      * Builds executable SQL from CTEs and target query
      */
     private fun buildSql(
-        ctes: List<SqlDependencyAnalyzer.CteEntry>,
+        ctes: List<SqlAnalyzer.CteEntry>,
         targetQuery: PsiElement,
         mode: HighlightMode
     ): String {
@@ -94,34 +94,25 @@ object SqlBuilder {
                 parts.add(dependencies.joinToString(",\n") { it.element.text })
             }
 
-            // Extract inner SELECT from target CTE
             val innerSelect = extractInnerSelect(targetQuery)
             if (innerSelect != null) {
                 parts.add(innerSelect)
             } else {
-                // Fallback: use SELECT * FROM if we can't extract inner SELECT
-                val cteName = targetQuery.firstChild?.text ?: ""
+                val cteName = extractCteNameFromElement(targetQuery)
                 parts.add("SELECT * FROM $cteName")
             }
         } else {
-            // Standard modes
-            // Add WITH clause if CTEs present
             if (ctes.isNotEmpty()) {
                 parts.add("WITH")
                 parts.add(ctes.joinToString(",\n") { it.element.text })
             }
 
-            // Add query part
             val queryText = when (targetQuery.node?.elementType) {
                 SqlElementTypes.SQL_NAMED_QUERY_DEFINITION -> {
-                    // Target is a CTE - select from it
-                    val cteName = targetQuery.firstChild?.text ?: ""
+                    val cteName = extractCteNameFromElement(targetQuery)
                     "SELECT * FROM $cteName"
                 }
-                else -> {
-                    // Target is a SELECT or other query - use as is
-                    targetQuery.text
-                }
+                else -> targetQuery.text
             }
 
             parts.add(queryText)
@@ -150,19 +141,18 @@ object SqlBuilder {
         return null
     }
 
+    private fun extractCteNameFromElement(cteElement: PsiElement): String =
+        cteElement.children.firstOrNull { it.elementType == SqlElementTypes.SQL_IDENTIFIER }?.text ?: ""
+
     /**
      * Builds highlight ranges based on mode
      */
     private fun buildHighlightRanges(
-        ctes: List<SqlDependencyAnalyzer.CteEntry>,
+        ctes: List<SqlAnalyzer.CteEntry>,
         targetQuery: PsiElement,
-        allCtes: List<SqlDependencyAnalyzer.CteEntry>,
+        allCtes: List<SqlAnalyzer.CteEntry>,
         mode: HighlightMode
     ): List<TextRange> {
-        if (ctes.isEmpty()) {
-            return listOf(targetQuery.textRange)
-        }
-
         return when (mode) {
             HighlightMode.FULL_CTE -> buildFullCteRanges(ctes, targetQuery)
             HighlightMode.PROGRESSIVE_CTE -> buildProgressiveCteRanges(ctes, targetQuery, allCtes)
@@ -175,7 +165,7 @@ object SqlBuilder {
      * Builds ranges that highlight full CTE definitions
      */
     private fun buildFullCteRanges(
-        ctes: List<SqlDependencyAnalyzer.CteEntry>,
+        ctes: List<SqlAnalyzer.CteEntry>,
         targetQuery: PsiElement
     ): List<TextRange> {
         val ranges = mutableListOf<TextRange>()
@@ -215,9 +205,9 @@ object SqlBuilder {
      * Shows CTEs progressively up to a selected one
      */
     private fun buildProgressiveCteRanges(
-        ctes: List<SqlDependencyAnalyzer.CteEntry>,
+        ctes: List<SqlAnalyzer.CteEntry>,
         targetQuery: PsiElement,
-        allCtes: List<SqlDependencyAnalyzer.CteEntry>
+        allCtes: List<SqlAnalyzer.CteEntry>
     ): List<TextRange> {
         val ranges = mutableListOf<TextRange>()
 
@@ -283,7 +273,7 @@ object SqlBuilder {
      * Builds ranges for single CTE inner content
      */
     private fun buildSingleCteInnerRanges(
-        ctes: List<SqlDependencyAnalyzer.CteEntry>
+        ctes: List<SqlAnalyzer.CteEntry>
     ): List<TextRange> {
         val ranges = mutableListOf<TextRange>()
 
@@ -325,7 +315,7 @@ object SqlBuilder {
      * Used for ExecuteFromHereAction when showing CTEs with dependencies
      */
     private fun buildDependenciesWithTargetInnerRanges(
-        ctes: List<SqlDependencyAnalyzer.CteEntry>,
+        ctes: List<SqlAnalyzer.CteEntry>,
         targetQuery: PsiElement
     ): List<TextRange> {
         val ranges = mutableListOf<TextRange>()

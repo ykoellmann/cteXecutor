@@ -1,7 +1,7 @@
 package com.ykoellmann.ctexecutor.actions
 
 import com.intellij.openapi.actionSystem.AnAction
-import com.ykoellmann.ctexecutor.analyzer.SqlDependencyAnalyzer
+import com.ykoellmann.ctexecutor.analyzer.SqlAnalyzer
 import com.ykoellmann.ctexecutor.analyzer.SqlBuilder
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
@@ -25,7 +25,6 @@ import javax.swing.JPanel
 
 /**
  * Base class for all SQL actions that show a popup with CTE/Query selection
- * Uses SqlDependencyAnalyzer for PSI analysis and SqlBuilder for SQL/highlighting generation
  */
 abstract class SqlActionBase : AnAction() {
 
@@ -48,11 +47,10 @@ abstract class SqlActionBase : AnAction() {
         val file = e.getData(CommonDataKeys.PSI_FILE) ?: return
 
         // Analyze SQL structure
-        val analyzer = SqlDependencyAnalyzer(file, editor.caretModel.offset)
-        val result = analyzer.analyze() ?: return
+        val context = SqlAnalyzer(file, editor.caretModel.offset).analyze() ?: return
 
         // Build popup options
-        val options = buildPopupOptions(result)
+        val options = buildPopupOptions(context)
         if (options.isEmpty()) return
 
         // Show popup
@@ -65,22 +63,17 @@ abstract class SqlActionBase : AnAction() {
      *
      * Default behavior: Show all CTEs progressively (each includes all CTEs up to it)
      */
-    protected open fun buildPopupOptions(result: SqlDependencyAnalyzer.AnalysisResult): List<PopupOption> {
+    protected open fun buildPopupOptions(context: SqlAnalyzer.SqlContext): List<PopupOption> {
         val options = mutableListOf<PopupOption>()
 
-        // Add options for each CTE (from first to last)
-        for (cte in result.allCtes) {
-            // Build SQL for this CTE: include all CTEs up to and including this one
-            val ctesUpToThis = result.allCtes.filter { it.index <= cte.index }
-
-            // Use SqlBuilder to generate SQL and highlighting
+        for (cte in context.allCtes) {
+            val ctesUpToThis = context.allCtes.filter { it.index <= cte.index }
             val buildResult = SqlBuilder.build(
                 ctes = ctesUpToThis,
                 targetQuery = cte.element,
-                allCtes = result.allCtes,
+                allCtes = context.allCtes,
                 mode = SqlBuilder.HighlightMode.PROGRESSIVE_CTE
             )
-
             options.add(PopupOption(
                 displayName = cte.name,
                 sql = buildResult.sql,

@@ -1,6 +1,15 @@
 # Changelog
 
 ## [Unreleased]
+### feat
+- Execute from Here now correctly detects cursor position inside UNION branches and executes only the selected branch with its required dependencies
+- Execute from Here now detects cursor inside inline subselects (e.g. derived tables in JOIN) and offers them as independent execution targets
+### fix
+- Cursor positioned on a closing bracket or whitespace at a CTE boundary now correctly resolves to the enclosing CTE instead of falling through to the outer query
+- CTE name extraction now uses the first SQL identifier child instead of the first child node, fixing edge cases with column-list CTEs
+- Dependency analysis for UNION CTEs now covers all branches instead of only the first one
+- Execute from Here final option now extracts the CTE body as the main query instead of generating SELECT * FROM cte_name, matching the behavior of the intermediate options
+- CTE name matching is now case-insensitive
 
 ## [2.0.1] - 2026-05-02
 ### fix

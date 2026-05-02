@@ -1,9 +1,8 @@
 package com.ykoellmann.ctexecutor.actions
 
-import com.ykoellmann.ctexecutor.analyzer.SqlDependencyAnalyzer
+import com.ykoellmann.ctexecutor.analyzer.SqlAnalyzer
 import com.ykoellmann.ctexecutor.analyzer.SqlBuilder
 import com.intellij.openapi.editor.Editor
-import com.intellij.sql.psi.SqlElementTypes
 
 /**
  * Execute from Here Action
@@ -22,28 +21,18 @@ class ExecuteFromHereAction : SqlActionBase() {
      * - Required CTEs (at top, in order)
      * - Current query at cursor (at bottom, pre-selected)
      */
-    override fun buildPopupOptions(result: SqlDependencyAnalyzer.AnalysisResult): List<PopupOption> {
+    override fun buildPopupOptions(context: SqlAnalyzer.SqlContext): List<PopupOption> {
         val options = mutableListOf<PopupOption>()
 
-        // Options 1-N: Each required CTE WITH ALL ITS DEPENDENCIES
-        for (i in result.requiredCtes.indices) {
-            val cte = result.requiredCtes[i]
-
-            // Get all CTEs up to and including this one (dependencies in order)
-            val ctesUpToHere = result.requiredCtes.subList(0, i + 1)
-
-            // Use SqlBuilder to generate SQL and highlighting
-            // DEPENDENCIES_WITH_TARGET_INNER mode:
-            // - Dependencies (all except target) are shown completely with WITH, names, parentheses
-            // - Target CTE shows only inner SELECT
-            // - SQL generated: WITH [dependencies] + [target's inner SELECT]
+        for (i in context.requiredCtes.indices) {
+            val cte = context.requiredCtes[i]
+            val ctesUpToHere = context.requiredCtes.subList(0, i + 1)
             val buildResult = SqlBuilder.build(
                 ctes = ctesUpToHere,
                 targetQuery = cte.element,
-                allCtes = result.allCtes,
+                allCtes = context.allCtes,
                 mode = SqlBuilder.HighlightMode.DEPENDENCIES_WITH_TARGET_INNER
             )
-
             options.add(PopupOption(
                 displayName = buildDisplayName(cte, ctesUpToHere.size - 1),
                 sql = buildResult.sql,
@@ -51,23 +40,33 @@ class ExecuteFromHereAction : SqlActionBase() {
             ))
         }
 
-        // Last Option: Current query at cursor (with all dependencies) - AT BOTTOM
-        val currentQueryName = if (result.targetQuery.node?.elementType == SqlElementTypes.SQL_NAMED_QUERY_DEFINITION) {
-            result.targetQuery.firstChild?.text ?: "Current CTE"
+        val activeCte = (context.cursorScope as? SqlAnalyzer.CursorScope.InsideCte)?.cte
+        val currentQueryName = activeCte?.name ?: "Current Query"
+
+        // When inside a CTE: extract its inner body as the final query (deps go into WITH clause).
+        // When in the main query: use FULL_CTE which preserves the SELECT as-is.
+        val (finalCtes, finalTarget, finalMode) = if (activeCte != null) {
+            Triple(
+                context.requiredCtes + listOf(activeCte),
+                activeCte.element,
+                SqlBuilder.HighlightMode.DEPENDENCIES_WITH_TARGET_INNER
+            )
         } else {
-            "Current Query"
+            Triple(
+                context.requiredCtes,
+                context.targetQuery,
+                SqlBuilder.HighlightMode.FULL_CTE
+            )
         }
 
-        // Use SqlBuilder for the full query with all dependencies
         val fullBuildResult = SqlBuilder.build(
-            ctes = result.requiredCtes,
-            targetQuery = result.targetQuery,
-            allCtes = result.allCtes,
-            mode = SqlBuilder.HighlightMode.FULL_CTE
+            ctes = finalCtes,
+            targetQuery = finalTarget,
+            allCtes = context.allCtes,
+            mode = finalMode
         )
-
         options.add(PopupOption(
-            displayName = "$currentQueryName (${result.requiredCtes.size} CTE${if (result.requiredCtes.size != 1) "s" else ""})",
+            displayName = "$currentQueryName (${context.requiredCtes.size} CTE${if (context.requiredCtes.size != 1) "s" else ""})",
             sql = fullBuildResult.sql,
             highlightRanges = fullBuildResult.highlightRanges
         ))
@@ -75,16 +74,9 @@ class ExecuteFromHereAction : SqlActionBase() {
         return options
     }
 
-    /**
-     * Builds display name showing CTE name and number of dependencies
-     */
-    private fun buildDisplayName(cte: SqlDependencyAnalyzer.CteEntry, dependencyCount: Int): String {
-        return if (dependencyCount > 0) {
-            "${cte.name} (+ $dependencyCount CTE${if (dependencyCount != 1) "s" else ""})"
-        } else {
-            cte.name
-        }
-    }
+    private fun buildDisplayName(cte: SqlAnalyzer.CteEntry, dependencyCount: Int): String =
+        if (dependencyCount > 0) "${cte.name} (+ $dependencyCount CTE${if (dependencyCount != 1) "s" else ""})"
+        else cte.name
 
     override fun handleSelectedOption(editor: Editor, option: PopupOption) {
         SqlExecutor.executeSqlSeamlessly(editor, option.sql)
