@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## [3.0.1] - 2026-05-03
+### fix
+- Replace deprecated `ActionUtil.performActionDumbAwareWithCallbacks` with `ActionUtil.performAction`
+
 ## [3.0.0] - 2026-05-02
 ### feat
 - Execute from Here now correctly detects cursor position inside UNION branches and executes only the selected branch with its required dependencies

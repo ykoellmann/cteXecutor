@@ -1,7 +1,7 @@
 package com.ykoellmann.ctexecutor
 
 object PluginInfo {
-    const val VERSION = "3.0.0"
+    const val VERSION = "3.0.1"
 
     /**
      * Version for which the notification should be shown.
@@ -28,6 +28,10 @@ object PluginInfo {
     """
 
     const val CHANGE_NOTES = """
+        <h3>Version 3.0.1</h3>
+        <ul>
+            <li><strong>FIXED:</strong> Replace deprecated ActionUtil.performActionDumbAwareWithCallbacks with ActionUtil.performAction</li>
+        </ul>
         <h3>Version 3.0.0</h3>
         <ul>
             <li><strong>NEW:</strong> Execute from Here now correctly detects cursor position inside UNION branches and executes only the selected branch with its required dependencies</li>

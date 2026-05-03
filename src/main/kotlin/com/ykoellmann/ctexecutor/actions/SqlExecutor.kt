@@ -67,8 +67,7 @@ object SqlExecutor {
                     ActionUiKind.NONE,
                     null   // inputEvent
                 )
-                // Use the modern, non-deprecated method for action execution
-                ActionUtil.performActionDumbAwareWithCallbacks(executeAction, event)
+                ActionUtil.performAction(executeAction, event)
 
                 // 4. Remove the inserted SQL after execution (without undo history)
                 ApplicationManager.getApplication().invokeLater {
