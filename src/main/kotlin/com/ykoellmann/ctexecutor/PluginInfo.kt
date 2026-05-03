@@ -1,7 +1,7 @@
 package com.ykoellmann.ctexecutor
 
 object PluginInfo {
-    const val VERSION = "3.0.1"
+    const val VERSION = "3.0.2"
 
     /**
      * Version for which the notification should be shown.
@@ -28,6 +28,10 @@ object PluginInfo {
     """
 
     const val CHANGE_NOTES = """
+        <h3>Version 3.0.2</h3>
+        <ul>
+            <li><strong>UPDATED:</strong>Upgrade necessary version</li>
+        </ul>
         <h3>Version 3.0.1</h3>
         <ul>
             <li><strong>FIXED:</strong> Replace deprecated ActionUtil.performActionDumbAwareWithCallbacks with ActionUtil.performAction</li>

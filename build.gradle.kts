@@ -41,7 +41,7 @@ intellijPlatform {
         version = project.version.toString()
 
         ideaVersion {
-            sinceBuild = "243"
+            sinceBuild = "252"
         }
 
         changeNotes = provider {

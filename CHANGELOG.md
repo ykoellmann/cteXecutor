@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## [3.0.2] - 2026-05-03
+### fix
+- Upgrade necessary version 
+
 ## [3.0.1] - 2026-05-03
 ### fix
 - Replace deprecated `ActionUtil.performActionDumbAwareWithCallbacks` with `ActionUtil.performAction`
