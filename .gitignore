@@ -45,3 +45,6 @@ bin/
 
 ### Mac OS ###
 .DS_Store
+### Claude / Session-Scratch ###
+# Mockup-HTMLs aus der Claude-Planungssession, gehoeren nicht ins Repo
+Claude outputs/

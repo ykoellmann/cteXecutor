@@ -27,7 +27,20 @@ dependencies {
         create("DB", "2026.1.2")
         testFramework(org.jetbrains.intellij.platform.gradle.TestFrameworkType.Platform)
         bundledPlugin("com.intellij.database")
+        // bundledPlugin() allein reicht fuer den `test`-Task nicht: die IntelliJ-Platform-Gradle-Plugin-
+        // Test-Sandbox laedt Bundled Plugins nur, wenn sie zusaetzlich ueber testBundledPlugin() als
+        // Test-Abhaengigkeit deklariert sind. Ohne das registriert FileTypeManager in BasePlatformTestCase
+        // keinen SQL-FileType, .sql-Testdateien werden als PlainTextFileType geparst (kein echtes SQL-PSI).
+        // com.intellij.database haengt selbst von com.intellij.modules.json (Modul intellij.json.backend)
+        // ab - ohne dessen Test-Bundling meldet der PluginManager "has module dependency
+        // 'intellij.json.backend' which cannot be loaded or missing" und ueberspringt das DB-Plugin komplett.
+        testBundledPlugin("com.intellij.database")
+        testBundledPlugin("com.intellij.modules.json")
     }
+    // TestFrameworkType.Platform bringt das Platform-Test-Framework mit, aber nicht JUnit selbst.
+    // BasePlatformTestCase/UsefulTestCase erben von junit.framework.TestCase (JUnit 3 API) -
+    // ohne diese Zeile fehlt das auf dem Testklassenpfad ("Cannot access junit.framework.TestCase").
+    testImplementation("junit:junit:4.13.2")
 }
 
 changelog {
