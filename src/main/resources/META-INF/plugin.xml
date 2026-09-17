@@ -21,30 +21,26 @@
         <postStartupActivity implementation="com.ykoellmann.ctexecutor.notification.UpdateNotificationStartupActivity"/>
     </extensions>
 
+    <!-- Nur noch 2 Actions (HANDOFF.md Abschnitt 27): CTE-Modus (ExecuteFromHereAction) und
+         Graph-Modus (NavigateDependencyGraphAction). CopyAction/CopyAndEditAction wurden entfernt -
+         ihre Funktion (Kopieren/Einfuegen) ist jetzt E/C-Tastenkuerzel innerhalb BEIDER Popups. -->
     <actions>
         <action id="com.ykoellmann.ctexecutor.ExecuteFromHereAction"
                 class="com.ykoellmann.ctexecutor.actions.ExecuteFromHereAction"
                 text="Execute from Here"
-                description="Execute SQL from current position with automatic dependency resolution">
+                description="Execute, edit, or copy SQL from the current position with automatic CTE dependency resolution">
             <add-to-group group-id="EditorPopupMenu" anchor="last"/>
             <keyboard-shortcut keymap="$default" first-keystroke="ctrl NUMBER_SIGN" second-keystroke="ENTER"/>
             <keyboard-shortcut keymap="$default" first-keystroke="ctrl NUMBER_SIGN" second-keystroke="SPACE"/>
         </action>
 
-        <action id="com.ykoellmann.ctexecutor.CopyAction"
-                class="com.ykoellmann.ctexecutor.actions.CopyAction"
-                text="Copy CT-Query SQL"
-                description="Copy the selected CTE SQL query to clipboard">
+        <!-- Shortcut noch nicht von Yannik final bestaetigt (Vorschlag Ctrl+# N), blockiert aber nichts. -->
+        <action id="com.ykoellmann.ctexecutor.NavigateDependencyGraphAction"
+                class="com.ykoellmann.ctexecutor.actions.NavigateDependencyGraphAction"
+                text="Navigate Dependency Graph"
+                description="Navigate CTE/subquery dependencies and consumers from the current position">
             <add-to-group group-id="EditorPopupMenu" anchor="last"/>
-            <keyboard-shortcut keymap="$default" first-keystroke="ctrl NUMBER_SIGN" second-keystroke="C"/>
-        </action>
-
-        <action id="com.ykoellmann.ctexecutor.CopyAndEditAction"
-                class="com.ykoellmann.ctexecutor.actions.CopyAndEditAction"
-                text="Edit and Run SQL"
-                description="Open a SQL editor dialog with full language support">
-            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
-            <keyboard-shortcut keymap="$default" first-keystroke="ctrl NUMBER_SIGN" second-keystroke="W"/>
+            <keyboard-shortcut keymap="$default" first-keystroke="ctrl NUMBER_SIGN" second-keystroke="N"/>
         </action>
     </actions>
 
