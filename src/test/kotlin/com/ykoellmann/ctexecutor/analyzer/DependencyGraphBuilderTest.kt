@@ -18,6 +18,49 @@ class DependencyGraphBuilderTest : BasePlatformTestCase() {
         return DependencyGraphBuilder(resolver = PsiResolvingResolver()).build(file)
     }
 
+    private fun buildGraphForSqlite(sql: String, fileName: String = "test_sqlite.sql"): DependencyGraph {
+        val file = myFixture.configureByText(fileName, sql)
+        com.intellij.sql.dialects.SqlDialectMappings.getInstance(project)
+            .setMapping(file.virtualFile, com.intellij.database.dialects.sqlite.sql.SqliteDialect.INSTANCE)
+        com.intellij.psi.PsiDocumentManager.getInstance(project).commitAllDocuments()
+        val refreshed = com.intellij.psi.PsiManager.getInstance(project).findFile(file.virtualFile)!!
+        return DependencyGraphBuilder(resolver = PsiResolvingResolver()).build(refreshed)
+    }
+
+    /**
+     * Regressionstest zu Yanniks Bug-Report (2026-09-17): "die einzelnen SQL-Teile vom UNION werden
+     * nicht erkannt" bei einer rekursiven SQLite-CTE mit Bracket-Identifiern (`[Name]`). Bestaetigt:
+     * das ist KEIN Bug im DependencyGraphBuilder - mit korrekt zugeordnetem SQLite-Dialekt werden
+     * beide UNION-ALL-Branches sauber erkannt. Die generische Dialekt-Grammatik (die ohne explizite
+     * Zuordnung greift, siehe PsiResolvingSpikeTest) akzeptiert `[...]`-Bracket-Identifier dagegen
+     * gar nicht - dann zerfaellt die komplette WITH-Klausel in Parse-Fehler, nicht nur die
+     * UNION-Erkennung. Praktisch: die Datei/Konsole muss in DataGrip dem SQLite-Dialekt zugeordnet
+     * sein (oder mit einer echten SQLite-Datenquelle verbunden sein).
+     */
+    fun testEmpChainRecursiveUnionBranchesAreDetectedUnderSqliteDialect() {
+        val sql = """
+            WITH RECURSIVE
+                [EmpChain] AS (SELECT [EmployeeID], [ReportsTo], 0 AS [Depth]
+                               FROM [Employees]
+                               WHERE [ReportsTo] IS NULL
+
+                               UNION ALL
+
+                               SELECT [Employees].[EmployeeID],
+                                      [Employees].[ReportsTo],
+                                      [EmpChain].[Depth] + 1
+                               FROM [Employees]
+                                        JOIN [EmpChain] ON [Employees].[ReportsTo] = [EmpChain].[EmployeeID])
+            SELECT * FROM [EmpChain]
+        """.trimIndent()
+        val graph = buildGraphForSqlite(sql)
+
+        val empChain = graph.allCtesNamed("[EmpChain]").singleOrNull()
+        assertNotNull("EmpChain CTE muss erkannt werden", empChain)
+        val branches = graph.nodesOf(NodeKind.UNION_BRANCH)
+        assertEquals("beide UNION-ALL-Branches muessen als eigene Knoten erkannt werden", 2, branches.size)
+    }
+
     fun testNestedWithShadowingProducesTwoDistinctOrdersNodes() {
         val graph = buildGraphFor(TestQueries.NESTED_WITH_SHADOWING)
         val orderNodes = graph.allCtesNamed("orders")

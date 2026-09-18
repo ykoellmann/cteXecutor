@@ -290,6 +290,88 @@ class PsiResolvingSpikeTest : BasePlatformTestCase() {
         dumpPsiTree(file, 0)
     }
 
+    // KORPUS-ERGAENZUNG (2026-09-17): Yannik meldete, dass in einer echten SQL-Server-Query (T-SQL
+    // Bracket-Identifier `[Name]`, Northwind-Beispiel "EmpChain") die UNION-ALL-Branches innerhalb
+    // einer rekursiven CTE NICHT als eigene, ausfuehrbare Knoten erkannt werden. Diagnose: die
+    // generische SQL-Dialekt-Grammatik (die diese Test-Suite mangels expliziter Dialekt-Zuordnung
+    // immer verwendet, siehe unten) akzeptiert `[...]`-Bracket-Identifier UEBERHAUPT NICHT - schon
+    // das `[` direkt nach `WITH RECURSIVE` fuehrt zu einem `ERROR_ELEMENT`, wonach der komplette
+    // Rest der WITH-Klausel in Muell (`DUMMY_BLOCK`/`ERROR_ELEMENT`) zerfaellt: keine gueltige
+    // `SQL_NAMED_QUERY_DEFINITION`, keine gueltige `SQL_UNION_EXPRESSION` - fuer den
+    // DependencyGraphBuilder gibt es hier strukturell NICHTS zu finden, nicht nur die UNION-Branches.
+    // `SqlDialectMappings.setDefaultSqlDialect(MsDialect.INSTANCE)` aendert daran in diesem
+    // BasePlatformTestCase-Setup NICHTS (`file.language` bleibt `GenericSQL`) - der Versuch, hier
+    // eine echte T-SQL-Dialekt-Zuordnung fuer den Unit-Test zu erzwingen, ist gescheitert und wurde
+    // nicht weiterverfolgt (siehe HANDOFF.md fuer den Status). Praktische Konsequenz fuer Yannik:
+    // das ist wahrscheinlich kein Bug in der Analyse-Logik, sondern die Datei/Konsole in DataGrip
+    // muss dem "Microsoft SQL Server"-Dialekt zugeordnet sein (oder mit einer echten SQL-Server-
+    // Datenquelle verbunden), damit DataGrips EIGENER dialektspezifischer Parser Bracket-Identifier
+    // ueberhaupt als gueltige Identifier erkennt - der DependencyGraphBuilder selbst ist bewusst
+    // dialektneutral (nutzt nur plattformweite `SqlElementTypes`) und sollte dann funktionieren.
+    fun testDumpPsiTreeForRecursiveCteWithBracketIdentifiersAndJoin() {
+        val file = myFixture.configureByText(
+            "empchain.sql",
+            """
+            WITH RECURSIVE
+                [EmpChain] AS (SELECT [EmployeeID], [ReportsTo], 0 AS [Depth]
+                               FROM [Employees]
+                               WHERE [ReportsTo] IS NULL
+
+                               UNION ALL
+
+                               SELECT [Employees].[EmployeeID],
+                                      [Employees].[ReportsTo],
+                                      [EmpChain].[Depth] + 1
+                               FROM [Employees]
+                                        JOIN [EmpChain] ON [Employees].[ReportsTo] = [EmpChain].[EmployeeID])
+            SELECT * FROM [EmpChain]
+            """.trimIndent()
+        )
+        println("SPIKE DUMP-EMPCHAIN - file.fileType = ${file.fileType}")
+        println("SPIKE DUMP-EMPCHAIN - PSI-Baum:")
+        dumpPsiTree(file, 0)
+    }
+
+    // KORREKTUR (2026-09-17): Yannik hat bestaetigt, dass der Dialekt tatsaechlich SQLite ist, nicht
+    // SQL Server - beide unterstuetzen `[Bracket]`-Identifier (SQLite explizit fuer MS-Access/SQL-
+    // Server-Kompatibilitaet), UND SQLite unterstuetzt (anders als T-SQL) explizit das `RECURSIVE`-
+    // Schluesselwort. Die Query ist also fuer diesen Dialekt gueltig - per-Datei-Dialekt-Zuordnung
+    // (statt des zuvor erfolglosen `setDefaultSqlDialect`) erzwingt jetzt echtes SQLite-Parsing.
+    fun testDumpPsiTreeForRecursiveCteWithBracketIdentifiersAndJoinSqliteDialect() {
+        val file = myFixture.configureByText("empchain_sqlite.sql", "SELECT 1")
+        com.intellij.sql.dialects.SqlDialectMappings.getInstance(project)
+            .setMapping(file.virtualFile, com.intellij.database.dialects.sqlite.sql.SqliteDialect.INSTANCE)
+        com.intellij.psi.PsiDocumentManager.getInstance(project).commitAllDocuments()
+
+        val reloaded = myFixture.configureByText(
+            "empchain_sqlite2.sql",
+            """
+            WITH RECURSIVE
+                [EmpChain] AS (SELECT [EmployeeID], [ReportsTo], 0 AS [Depth]
+                               FROM [Employees]
+                               WHERE [ReportsTo] IS NULL
+
+                               UNION ALL
+
+                               SELECT [Employees].[EmployeeID],
+                                      [Employees].[ReportsTo],
+                                      [EmpChain].[Depth] + 1
+                               FROM [Employees]
+                                        JOIN [EmpChain] ON [Employees].[ReportsTo] = [EmpChain].[EmployeeID])
+            SELECT * FROM [EmpChain]
+            """.trimIndent()
+        )
+        com.intellij.sql.dialects.SqlDialectMappings.getInstance(project)
+            .setMapping(reloaded.virtualFile, com.intellij.database.dialects.sqlite.sql.SqliteDialect.INSTANCE)
+        com.intellij.psi.PsiDocumentManager.getInstance(project).commitAllDocuments()
+        val refreshed = com.intellij.psi.PsiManager.getInstance(project).findFile(reloaded.virtualFile)
+
+        println("SPIKE DUMP-EMPCHAIN-SQLITE - file.fileType = ${refreshed?.fileType}")
+        println("SPIKE DUMP-EMPCHAIN-SQLITE - file.language = ${refreshed?.language}")
+        println("SPIKE DUMP-EMPCHAIN-SQLITE - PSI-Baum:")
+        refreshed?.let { dumpPsiTree(it, 0) }
+    }
+
     private fun dumpPsiTree(element: PsiElement, depth: Int) {
         val indent = "  ".repeat(depth)
         val typeLabel = element.elementType?.toString() ?: element.javaClass.simpleName
