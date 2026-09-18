@@ -16,6 +16,31 @@ import com.intellij.util.DocumentUtil
 object SqlExecutor {
 
     /**
+     * Fires the native DB-console execute action on whatever is CURRENTLY selected in [editor] -
+     * no paste/undo-transparent trick, no dependency resolution. Used when Ctrl+Enter is pressed
+     * while the user already has code selected: in that case ExecuteFromHereAction should behave
+     * exactly like the standard execute shortcut, not open the CTE-dependency popup.
+     */
+    fun executeCurrentSelection(editor: Editor) {
+        val actionManager = ActionManager.getInstance()
+        val executeAction = actionManager.getAction("Console.Jdbc.Execute")
+            ?: actionManager.getAction("Console.Execute")
+            ?: actionManager.getAction("Console.Execute.Multiline")
+            ?: return
+
+        val dataContext = DataManager.getInstance().getDataContext(editor.contentComponent)
+        val event = AnActionEvent.createEvent(
+            executeAction,
+            dataContext,
+            null,
+            ActionPlaces.UNKNOWN,
+            ActionUiKind.NONE,
+            null
+        )
+        ActionUtil.performAction(executeAction, event)
+    }
+
+    /**
      * Executes SQL seamlessly without undo history.
      *
      * This function:

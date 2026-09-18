@@ -4,6 +4,7 @@ import com.intellij.icons.AllIcons
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
+import com.intellij.openapi.application.runReadAction
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.colors.EditorColors
 import com.intellij.openapi.editor.colors.EditorColorsManager
@@ -104,15 +105,28 @@ class ExecuteFromHereAction : AnAction() {
         val editor = e.getData(CommonDataKeys.EDITOR) ?: return
         val file = e.getData(CommonDataKeys.PSI_FILE) ?: return
 
-        val graph = DependencyGraphBuilder().build(file)
-        val node = graph.nodeAt(editor.caretModel.offset) ?: return
+        // Ctrl+Enter ist auch der Standard-Shortcut fuer "Zeile/Selektion ausfuehren" - hat der
+        // Nutzer bereits Code markiert, soll dieser genauso direkt ausgefuehrt werden wie ohne
+        // dieses Plugin, statt das CTE-Abhaengigkeits-Popup zu zeigen (siehe SqlExecutor.executeCurrentSelection).
+        if (editor.selectionModel.hasSelection()) {
+            SqlExecutor.executeCurrentSelection(editor)
+            return
+        }
 
-        val rows = computeRows(graph, node)
+        val offset = editor.caretModel.offset
+        // Graph-Aufbau, nodeAt() und computeRows() greifen alle auf PSI zu (TextRange, .text,
+        // Referenz-Resolving) - das braucht eine Read-Action, auch innerhalb einer regulaeren
+        // AnAction.actionPerformed-Ausfuehrung ist das nicht automatisch garantiert.
+        val rows = runReadAction {
+            val graph = DependencyGraphBuilder().build(file)
+            val node = graph.nodeAt(offset) ?: return@runReadAction emptyList()
+            computeRows(graph, node)
+        }
         if (rows.isEmpty()) return
 
         // Standardfokus auf das aktuelle Statement (letzter Eintrag) - entspricht der alten
         // Default-Auswahl (`setSelectedValue(displayNames.lastOrNull(), true)`).
-        showPopupFor(rows, rows.size - 1, editor, editor.caretModel.offset)
+        showPopupFor(rows, rows.size - 1, editor, offset)
     }
 
     companion object {
@@ -224,7 +238,7 @@ class ExecuteFromHereAction : AnAction() {
                 // Cursor relativ zur urspruenglichen Position im Original-SQL platzieren, falls diese
                 // Zeile genau der Bereich ist, in dem der Cursor stand (siehe resolveCaretOffset) -
                 // sonst (z.B. eine weiter oben liegende CTE) einfach ans Ende des eingefuegten SQL.
-                val caretOffset = row.sourceCaretMapping?.resolveCaretOffset(originalCaretOffset)
+                val caretOffset = runReadAction { row.sourceCaretMapping?.resolveCaretOffset(originalCaretOffset) }
                 insertSqlIntoEditor(editor, row.sql, caretOffset)
                 popupRef.cancel()
             }
