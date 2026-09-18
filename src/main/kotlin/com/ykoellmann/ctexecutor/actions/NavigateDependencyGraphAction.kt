@@ -4,6 +4,7 @@ import com.intellij.icons.AllIcons
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
+import com.intellij.openapi.application.runReadAction
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.ScrollType
 import com.intellij.openapi.editor.colors.EditorColors
@@ -125,9 +126,16 @@ class NavigateDependencyGraphAction : AnAction() {
         val editor = e.getData(CommonDataKeys.EDITOR) ?: return
         val file = e.getData(CommonDataKeys.PSI_FILE) ?: return
 
-        val graph = DependencyGraphBuilder().build(file)
         val offset = editor.caretModel.offset
-        val start = graph.nodeAt(offset) ?: return
+        // PSI-Zugriff (Graph-Aufbau, nodeAt()) braucht eine Read-Action - anders als bei einer
+        // regulaeren AnAction.actionPerformed-Ausfuehrung durch die Platform ist das hier NICHT
+        // automatisch garantiert, siehe navigateAndReopen()/showPopupFor() fuer den eigentlichen
+        // Grund (dort wird es aus einem rohen Swing-Tastenkuerzel heraus aufgerufen).
+        val (graph, start) = runReadAction {
+            val g = DependencyGraphBuilder().build(file)
+            g to g.nodeAt(offset)
+        }
+        start ?: return
 
         showPopupFor(graph, start, editor, offset)
     }
@@ -136,7 +144,18 @@ class NavigateDependencyGraphAction : AnAction() {
         val consumers = node.consumerIds.map(graph::resolve)
         // Selbstschleife (rekursive CTE) wird nicht als eigene, navigierbare Zeile gezeigt -
         // "springe zu dir selbst" waere kein sinnvoller Navigationsschritt.
-        val dependencies = node.dependencyIds.filter { it != node.id }.map(graph::resolve)
+        //
+        // Positions-sortiert (nach der TEXTPOSITION der jeweiligen Dependency-Definition), NICHT in
+        // der Reihenfolge von node.dependencyIds (das ist nur die Entdeckungsreihenfolge der
+        // Referenzen im Text von `node` selbst, hat nichts mit der Position der Dependency-CTEs zu
+        // tun und fuehrte zu einer effektiv zufaelligen/oft "falschrum" wirkenden Nummerierung).
+        // Aufsteigend sortiert: die zuerst im Dokument definierte (am weitesten "oben"/entferntesten)
+        // Dependency landet oben im Dependency-Block mit der HOECHSTEN Nummer, die zuletzt/am
+        // naechsten zur aktuellen Zeile definierte landet direkt darueber mit der NIEDRIGSTEN Nummer.
+        val dependencies = node.dependencyIds
+            .filter { it != node.id }
+            .map(graph::resolve)
+            .sortedBy { it.element.textRange.startOffset }
 
         fun toRow(n: DependencyNode, kind: RowKind, number: Int?): Row {
             val result = DependencyGraphSqlBuilder.build(n, graph)
@@ -157,7 +176,11 @@ class NavigateDependencyGraphAction : AnAction() {
     }
 
     private fun showPopupFor(graph: DependencyGraph, node: DependencyNode, editor: Editor, originalCaretOffset: Int) {
-        val (dependencyRows, currentRow, consumerRows) = buildRows(graph, node)
+        // buildRows() greift auf PSI zu (TextRange, .text, Referenz-Resolving via
+        // DependencyGraphSqlBuilder) - beim ersten Aufbau ueber actionPerformed() unproblematisch,
+        // aber ueber navigateAndReopen() wird das aus einem rohen Swing-Tastenkuerzel/Klick heraus
+        // aufgerufen (kein automatischer Read-Action-Kontext), siehe Klassen-Doc-Kommentar.
+        val (dependencyRows, currentRow, consumerRows) = runReadAction { buildRows(graph, node) }
         // Anzeige-/Navigationsreihenfolge von oben nach unten - UP/DOWN bewegt sich entlang dieser
         // einen gemeinsamen Liste, unabhaengig von der visuellen Gruppierung in 3 Sektionen.
         val orderedRows = dependencyRows + currentRow + consumerRows
@@ -255,7 +278,7 @@ class NavigateDependencyGraphAction : AnAction() {
                 // Cursor relativ zur urspruenglichen Position im Original-SQL platzieren, falls diese
                 // Zeile genau der Bereich ist, in dem der Cursor beim Aufruf der Action stand - sonst
                 // (z.B. eine Dependency-/Consumer-Zeile oder nach einem Sprung) ans Ende des SQL.
-                val caretOffset = row.sourceCaretMapping?.resolveCaretOffset(originalCaretOffset)
+                val caretOffset = runReadAction { row.sourceCaretMapping?.resolveCaretOffset(originalCaretOffset) }
                 insertSqlIntoEditor(editor, row.sql, caretOffset)
                 popupRef.cancel()
             }
@@ -310,7 +333,8 @@ class NavigateDependencyGraphAction : AnAction() {
 
     /** Springen != Ausfuehren: bewegt nur den Cursor und zeigt (statt eines zweiten Popups daneben) ein neues Popup an derselben Stelle. */
     private fun navigateAndReopen(graph: DependencyGraph, node: DependencyNode, editor: Editor, originalCaretOffset: Int) {
-        editor.caretModel.moveToOffset(node.element.textRange.startOffset)
+        val targetOffset = runReadAction { node.element.textRange.startOffset }
+        editor.caretModel.moveToOffset(targetOffset)
         editor.scrollingModel.scrollToCaret(ScrollType.CENTER)
         showPopupFor(graph, node, editor, originalCaretOffset)
     }
