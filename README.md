@@ -1,140 +1,72 @@
 # cteXecutor
 
-Execute and manage Common Table Expressions (CTEs) with ease in DataGrip and IntelliJ-based IDEs.
-
-### Reviews are much appreciated! ⭐
-
----
+cteXecutor is a plugin for DataGrip and other IntelliJ-based IDEs that lets you execute a single
+Common Table Expression (CTE), subquery, or UNION branch directly from the editor, without manually
+assembling the surrounding WITH clause.
 
 ## Features
 
-### 🎯 CTE Management
-- **Detects all CTEs** in your SQL `WITH` clause automatically
-- **Interactive popup chooser** to select which CTE(s) you want to execute or copy
-- **Visual highlighting** of selected CTE(s) inside the editor for better clarity
-- **Smart execution** - executes the chosen SQL query in the database console
-- **Copy to clipboard** - quickly copy any CTE query for use elsewhere
+### Execute from Here
 
-### 🚀 NEW: Execute from Here (v2.0.0)
-- **Execute from anywhere** - not just CTEs! Works with any subselect in your SQL
-- **Automatic dependency resolution** - automatically includes all required CTEs
-- **Smart detection** - finds dependencies in CTEs, subqueries, and final SELECT statements
-- **Interactive selection** - choose exactly where to start execution from
+Place the caret anywhere in a SQL file, inside a CTE, a subquery, a UNION branch, or the main
+query, and invoke Execute from Here (`Ctrl+#` then `Enter`). The plugin resolves which CTEs the
+current statement depends on, in the correct order, and shows them as a single list ending with the
+current statement. If code is already selected when you invoke it, that selection runs directly
+instead, the same as the IDE's standard execute shortcut.
 
-### ⚡ Developer Productivity
-- **Keyboard shortcuts** for lightning-fast workflow
-- **Minimal UI** - stays out of your way
-- **Automatic cleanup** - inserted SQL is removed after execution
-- **Lightweight** - no performance impact
+From that list:
 
----
+- Enter executes the selected statement, together with its dependencies, in the database console
+- E inserts the selected statement into the editor
+- C copies the selected statement to the clipboard
+
+### Navigate Dependency Graph
+
+Invoke Navigate Dependency Graph (`Ctrl+#` then `D`) to see what the statement at the caret depends
+on and what depends on it. Selecting a dependency or consumer moves the caret there and refreshes
+the list around the new position. The same Enter, E, and C shortcuts apply to whichever row is
+focused.
 
 ## Usage
 
-### Basic CTE Execution
+1. Open a SQL file containing one or more CTEs
+2. Place the caret inside the CTE, subquery, or query you want to work with
+3. Invoke Execute from Here or Navigate Dependency Graph
+4. Select a row to preview it, or use the shortcuts above to execute, edit, or copy it
 
-1. Open a SQL file containing CTEs (WITH clauses)
-2. Place the caret anywhere inside or near a CTE
-3. Invoke **Run CT-Query** (shortcut: `Ctrl+#` then `Space`)
-4. Select the desired CTE from the popup
-5. The plugin highlights the relevant SQL and executes it in the console
-6. The inserted SQL is automatically cleaned up after execution
+The inserted SQL used for execution is removed from the document again afterward; it never becomes
+part of the file or the undo history.
 
-### Execute from Here (NEW!)
+## Example
 
-1. Place your caret anywhere in your SQL - inside a CTE, subquery, or main SELECT
-2. Invoke **Execute from Here** (shortcut: `Ctrl+#` then `Enter`)
-3. The plugin detects all dependencies and shows execution options
-4. Select where to execute from
-5. All required CTEs are automatically included
-
-### Copy SQL
-
-1. Place the caret in a CTE
-2. Invoke **Copy CT-Query SQL** (shortcut: `Ctrl+#` then `C`)
-3. The SQL is copied to your clipboard
-
-### Edit and Run
-
-1. Place the caret in a CTE
-2. Invoke **Edit and Run SQL** (shortcut: `Ctrl+#` then `W`)
-3. Modify the query (e.g., add WHERE clauses)
-4. The modified SQL is ready to execute
-
----
-
-## Examples
-
-### Example 1: Basic CTE Execution
 ```sql
-WITH 
-  sales AS (SELECT * FROM orders WHERE year = 2024),
-  customers AS (SELECT * FROM users WHERE active = true)
-SELECT * FROM sales 
-JOIN customers ON sales.user_id = customers.id;
-```
-- Place caret in `sales` CTE
-- Press `Ctrl+#` → `Space`
-- Select "sales" from popup
-- Executes: `WITH sales AS (...) SELECT * FROM sales`
-
-### Example 2: Execute from Here (NEW!)
-```sql
-WITH 
+WITH
   sales AS (SELECT * FROM orders WHERE year = 2024),
   revenue AS (
-    SELECT 
-      product_id,
-      SUM(amount) as total
-    FROM sales  -- Place caret here
+    SELECT product_id, SUM(amount) AS total
+    FROM sales
     GROUP BY product_id
   )
 SELECT * FROM revenue WHERE total > 1000;
 ```
-- Place caret in the subquery inside `revenue` CTE
-- Press `Ctrl+#` → `Enter`
-- Plugin detects that `sales` CTE is needed
-- Executes the subquery with all dependencies automatically included!
 
-### Example 3: Complex Dependencies
-```sql
-WITH 
-  base AS (SELECT * FROM data),
-  filtered AS (SELECT * FROM base WHERE active = true),
-  aggregated AS (SELECT category, COUNT(*) FROM filtered GROUP BY category)
-SELECT * FROM aggregated ORDER BY count DESC;
-```
-- Place caret anywhere in `aggregated`
-- Press `Ctrl+#` → `Enter`
-- Automatically includes `base` and `filtered` CTEs (all dependencies)
-- Clean, dependency-aware execution!
-
----
+Placing the caret inside `revenue` and invoking Execute from Here shows two rows: `sales` and the
+current statement. Executing the current statement runs it together with the `sales` CTE it needs,
+without touching `revenue`'s own WITH clause manually.
 
 ## Installation
 
-1. Open IntelliJ IDEA / DataGrip
-2. Go to **Settings** → **Plugins** → **Marketplace**
-3. Search for **"cteXecutor"**
-4. Click **Install**
-5. Restart your IDE
-
----
+1. Open IntelliJ IDEA or DataGrip
+2. Go to Settings, then Plugins, then Marketplace
+3. Search for cteXecutor
+4. Install and restart the IDE
 
 ## Contributing
 
-Found a bug or have a feature request? Please open an issue on GitHub!
-
----
+Bug reports and feature requests are welcome as GitHub issues.
 
 ## Support
 
-If you find this plugin helpful, please:
-- ⭐ **Star the repository**
-- 📝 **Leave a review** on the JetBrains Marketplace
-- 🐛 **Report bugs** to help improve the plugin
-- 💡 **Share your ideas** for new features
-
----
-
-**Made with ❤️ for SQL developers who work with CTEs**
+If cteXecutor is useful to you, a review on the
+[JetBrains Marketplace](https://plugins.jetbrains.com/plugin/27835-ctexecutor/reviews) helps other
+people find it.
