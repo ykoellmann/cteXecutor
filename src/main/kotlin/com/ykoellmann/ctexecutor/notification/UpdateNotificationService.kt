@@ -1,5 +1,7 @@
 package com.ykoellmann.ctexecutor.notification
 
+import com.intellij.ide.BrowserUtil
+import com.intellij.notification.NotificationAction
 import com.intellij.notification.NotificationGroupManager
 import com.ykoellmann.ctexecutor.PluginInfo
 import com.intellij.notification.NotificationType
@@ -46,6 +48,9 @@ class UpdateNotificationService : PersistentStateComponent<UpdateNotificationSer
             NotificationGroupManager.getInstance()
                 .getNotificationGroup("cteExecutor.notifications")
                 .createNotification(PluginInfo.NOTIFICATION_CONTENT, NotificationType.INFORMATION)
+                .addAction(NotificationAction.createSimple("Rate cteXecutor on the Marketplace") {
+                    BrowserUtil.browse(PluginInfo.MARKETPLACE_REVIEWS_URL)
+                })
                 .notify(project)
         }
     }

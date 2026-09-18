@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+## [4.0.0] - 2026-09-17
+### feat
+- Navigate Dependency Graph action, showing dependencies and consumers of the statement at the caret, navigable with the same shortcuts as Execute from Here
+- Execute from Here now shows the current statement and its needed CTEs as a single navigable list instead of a flat popup, with fixed numbering that follows the focused row
+- E (insert into editor) and C (copy to clipboard) shortcuts inside both popups, acting on whichever row is currently focused
+
+### fix
+- Editing a statement now places the cursor at its original position within the inserted SQL where possible, instead of always at the end
+- Dependency and correlation analysis now uses PSI reference resolving instead of name matching, correctly handling nested WITH clauses with shadowed CTE names, WITH RECURSIVE self-references, and uncorrelated subqueries
+- A recursive CTE executed on its own no longer produces invalid SQL with an undefined self-reference
+- Dependencies shown in Navigate Dependency Graph are now ordered by their position in the file; the one closest to the current statement is shown nearest to it instead of farthest away
+- Navigating the dependency graph from a keyboard shortcut no longer risks a threading assertion failure
+
+### break
+- Removed the separate Copy CT-Query SQL and Edit and Run SQL actions; their functionality is now available as E and C shortcuts inside Execute from Here and Navigate Dependency Graph
+- Execute from Here no longer has a Ctrl+# then Space alternate shortcut; Ctrl+# then Enter remains
+- Execute from Here now falls back to the standard execute shortcut if code is already selected, instead of showing the dependency popup
+- Navigate Dependency Graph shortcut changed from Ctrl+# then N to Ctrl+# then D
+
 ## [3.0.2] - 2026-05-03
 ### fix
 - Upgrade necessary version 
