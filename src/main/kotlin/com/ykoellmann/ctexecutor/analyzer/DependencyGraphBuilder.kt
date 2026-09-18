@@ -348,3 +348,21 @@ internal fun findBodySlot(cteElement: PsiElement): PsiElement? {
     if (leftIdx < 0 || rightIdx <= leftIdx) return null
     return children.toList().subList(leftIdx + 1, rightIdx).firstOrNull { it !is PsiWhiteSpace }
 }
+
+/**
+ * Recursively collects the first (unqualified) identifier from each SQL_TABLE_REFERENCE in the
+ * given element tree. Covers all FROM, JOIN, subselect, and UNION branches. Vormals in
+ * SqlAnalyzer.kt (jetzt entfernt, siehe HANDOFF.md) - hierher verschoben, weil sowohl
+ * DependencyGraphBuilder.collectSelfReference() als auch TableReferenceResolver.NameMatchingResolver
+ * das weiterhin nutzen.
+ */
+internal fun collectTableRefs(element: PsiElement, result: MutableSet<String>) {
+    if (element.elementType == SqlElementTypes.SQL_TABLE_REFERENCE) {
+        element.children
+            .firstOrNull { it.elementType == SqlElementTypes.SQL_IDENTIFIER }
+            ?.text?.let { result.add(it) }
+    }
+    for (child in element.children) {
+        collectTableRefs(child, result)
+    }
+}

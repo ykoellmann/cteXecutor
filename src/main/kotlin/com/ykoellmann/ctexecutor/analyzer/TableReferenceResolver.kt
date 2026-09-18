@@ -9,7 +9,7 @@ interface TableReferenceResolver {
 class NameMatchingResolver : TableReferenceResolver {
     override fun collectReferences(element: PsiElement): Set<String> {
         val result = mutableSetOf<String>()
-        collectTableRefs(element, result)   // bestehende Funktion aus SqlAnalyzer.kt, unveraendert
+        collectTableRefs(element, result)   // siehe DependencyGraphBuilder.kt
         return result
     }
 }
