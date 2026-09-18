@@ -25,22 +25,22 @@
          Graph-Modus (NavigateDependencyGraphAction). CopyAction/CopyAndEditAction wurden entfernt -
          ihre Funktion (Kopieren/Einfuegen) ist jetzt E/C-Tastenkuerzel innerhalb BEIDER Popups. -->
     <actions>
+        <!-- Falls bereits eine Editor-Selektion besteht, fuehrt die Action diese direkt aus (wie die
+             Standard-Ausfuehrung) statt das CTE-Abhaengigkeits-Popup zu zeigen, siehe ExecuteFromHereAction. -->
         <action id="com.ykoellmann.ctexecutor.ExecuteFromHereAction"
                 class="com.ykoellmann.ctexecutor.actions.ExecuteFromHereAction"
                 text="Execute from Here"
                 description="Execute, edit, or copy SQL from the current position with automatic CTE dependency resolution">
             <add-to-group group-id="EditorPopupMenu" anchor="last"/>
             <keyboard-shortcut keymap="$default" first-keystroke="ctrl NUMBER_SIGN" second-keystroke="ENTER"/>
-            <keyboard-shortcut keymap="$default" first-keystroke="ctrl NUMBER_SIGN" second-keystroke="SPACE"/>
         </action>
 
-        <!-- Shortcut noch nicht von Yannik final bestaetigt (Vorschlag Ctrl+# N), blockiert aber nichts. -->
         <action id="com.ykoellmann.ctexecutor.NavigateDependencyGraphAction"
                 class="com.ykoellmann.ctexecutor.actions.NavigateDependencyGraphAction"
                 text="Navigate Dependency Graph"
                 description="Navigate CTE/subquery dependencies and consumers from the current position">
             <add-to-group group-id="EditorPopupMenu" anchor="last"/>
-            <keyboard-shortcut keymap="$default" first-keystroke="ctrl NUMBER_SIGN" second-keystroke="N"/>
+            <keyboard-shortcut keymap="$default" first-keystroke="ctrl NUMBER_SIGN" second-keystroke="D"/>
         </action>
     </actions>
 
