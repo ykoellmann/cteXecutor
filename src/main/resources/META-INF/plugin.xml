@@ -18,6 +18,7 @@
         <notificationGroup id="cteExecutor.notifications"
                            displayType="BALLOON"/>
         <applicationService serviceImplementation="com.ykoellmann.ctexecutor.notification.UpdateNotificationService"/>
+        <fileDocumentSynchronizationVetoer implementation="com.ykoellmann.ctexecutor.actions.SqlExecutor$SaveVetoer"/>
         <postStartupActivity implementation="com.ykoellmann.ctexecutor.notification.UpdateNotificationStartupActivity"/>
     </extensions>
 

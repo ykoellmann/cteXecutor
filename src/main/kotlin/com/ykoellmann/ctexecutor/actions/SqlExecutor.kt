@@ -7,13 +7,30 @@ import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.ActionUiKind
 import com.intellij.openapi.actionSystem.ex.ActionUtil
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.database.console.JdbcConsoleProvider
+import com.intellij.database.settings.DatabaseSettings
+import com.intellij.openapi.diagnostic.Logger
+import com.intellij.openapi.editor.Document
 import com.intellij.openapi.editor.Editor
+import com.intellij.openapi.fileEditor.FileDocumentSynchronizationVetoer
+import com.intellij.psi.PsiDocumentManager
+import com.intellij.psi.PsiFileFactory
+import com.intellij.sql.psi.SqlPsiFacade
 import com.intellij.util.DocumentUtil
 
 /**
  * Utility for seamlessly executing SQL without adding to undo history
  */
 object SqlExecutor {
+
+    private val LOG = Logger.getInstance(SqlExecutor::class.java)
+
+    /** Documents with temporarily inserted SQL; [SaveVetoer] keeps them off disk (and out of Local History). EDT only. */
+    internal val unsavable = mutableSetOf<Document>()
+
+    class SaveVetoer : FileDocumentSynchronizationVetoer() {
+        override fun maySaveDocument(document: Document, isSaveExplicit: Boolean) = document !in unsavable
+    }
 
     /**
      * Fires the native DB-console execute action on whatever is CURRENTLY selected in [editor] -
@@ -41,7 +58,38 @@ object SqlExecutor {
     }
 
     /**
+     * Runs [sql] on the editor's attached console without touching the editor's document: the SQL is parsed
+     * into a ScriptModel from a detached in-memory file and handed to `JdbcConsole.executeQueries`, which
+     * reads the statement text from the model (and, unlike the execute action, does not save all documents).
+     *
+     * Uses internal Database-plugin API (JdbcConsole, JdbcConsoleProvider), so returns false - and the caller
+     * falls back to the paste approach - if there is no attached console or that API is missing in this IDE
+     * build (LinkageError). shortcut: ConsoleDataRequest creates range markers for the model's ranges in
+     * [editor]'s document, so error-position navigation can point to the wrong spot; revisit if that matters.
+     */
+    private fun executeDirectly(editor: Editor, sql: String): Boolean {
+        val project = editor.project ?: return false
+        return try {
+            val file = editor.virtualFile ?: return false
+            val console = JdbcConsoleProvider.getValidConsole(project, file) ?: return false
+            val language = PsiDocumentManager.getInstance(project).getPsiFile(editor.document)?.language ?: return false
+            val detached = PsiFileFactory.getInstance(project).createFileFromText("cte.sql", language, sql, false, true)
+            val model = SqlPsiFacade.getInstance(project).createScriptModel(detached)
+            if (model.statements().isEmpty) return false
+            if (console.beforeExecuteQueries(model)) {
+                console.executeQueries(editor, model, DatabaseSettings.getSettings().execOptions[0])
+            }
+            true
+        } catch (e: LinkageError) {
+            LOG.warn("Database plugin API not available, falling back to paste execution", e)
+            false
+        }
+    }
+
+    /**
      * Executes SQL seamlessly without undo history.
+     *
+     * First tries [executeDirectly]; if that is not possible, falls back to the steps below.
      *
      * This function:
      * 1. Inserts SQL at the end of the document (without undo history)
@@ -55,11 +103,13 @@ object SqlExecutor {
      */
     fun executeSqlSeamlessly(editor: Editor, sql: String) {
         val project = editor.project ?: return
+        if (executeDirectly(editor, sql)) return
         val document = editor.document
         val originalOffset = editor.caretModel.offset
         val insertionPoint = document.textLength
 
         // 1. Insert SQL without undo history
+        unsavable += document
         DocumentUtil.writeInRunUndoTransparentAction {
             document.insertString(insertionPoint, "\n$sql")
         }
@@ -105,7 +155,10 @@ object SqlExecutor {
                     // 5. Restore original state
                     editor.selectionModel.removeSelection()
                     editor.caretModel.moveToOffset(originalOffset)
+                    unsavable -= document
                 }
+            } else {
+                unsavable -= document
             }
         }
     }

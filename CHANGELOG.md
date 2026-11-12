@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [4.1.0] - 2026-11-12
+### feat
+- Execute from Here now runs the generated SQL directly on the attached console without pasting it into the file, with the previous paste-based execution kept as a fallback
+
+### fix
+- Executing from Here no longer leaves the temporarily pasted SQL in the editor's Local History
+
 ## [4.0.0] - 2026-09-17
 ### feat
 - Navigate Dependency Graph action, showing dependencies and consumers of the statement at the caret, navigable with the same shortcuts as Execute from Here

@@ -1,7 +1,7 @@
 package com.ykoellmann.ctexecutor
 
 object PluginInfo {
-    const val VERSION = "4.0.0"
+    const val VERSION = "4.1.0"
 
     const val MARKETPLACE_REVIEWS_URL = "https://plugins.jetbrains.com/plugin/27835-ctexecutor/reviews"
 
@@ -10,27 +10,27 @@ object PluginInfo {
      * Only update this when you want users to see the notification again.
      * For bugfix releases, you can keep this the same to avoid re-showing notifications.
      */
-    const val NOTIFICATION_VERSION = "4.0.0"
+    const val NOTIFICATION_VERSION = "4.1.0"
 
     const val NOTIFICATION_CONTENT = """
         <b>cteXecutor Update $NOTIFICATION_VERSION</b><br><br>
 
-        <b>New: Navigate Dependency Graph</b><br>
-        A second action that shows what the statement at the caret depends on and what depends on it,
-        with the same execute, edit, and copy shortcuts as Execute from Here.<br><br>
+        <b>Fixed: no more Local History clutter</b><br>
+        Execute from Here used to paste the generated SQL into your file, run it, and delete it again.
+        Because the IDE can save the file in between, that showed up as changes in the editor's Local
+        History. The SQL is now executed directly without touching your file, so nothing is added to
+        Local History anymore. If you were bothered by this, it is gone.<br><br>
 
-        <b>Execute from Here rewritten:</b><br>
-        Dependencies and the current statement are now shown as one list you can move through with
-        the arrow keys or number keys, instead of a flat popup.<br><br>
-
-        <b>Change:</b><br>
-        The separate Copy CT-Query SQL and Edit and Run SQL actions have been removed. Their
-        functionality is now available as E (insert into editor) and C (copy to clipboard) inside
-        both popups. Execute from Here falls back to the standard execute shortcut if code is
-        already selected. Navigate Dependency Graph moved to Ctrl+# then D.
+        If cteXecutor saves you time, a short rating on the Marketplace helps a lot: it shows me
+        whether further development of the plugin is wanted.
     """
 
     const val CHANGE_NOTES = """
+        <h3>Version 4.1.0</h3>
+        <ul>
+            <li><strong>FIXED:</strong> Execute from Here no longer pastes the generated SQL into the file and deletes it again, so it no longer shows up in the editor's Local History</li>
+            <li><strong>IMPROVED:</strong> The generated SQL is now executed directly on the attached console without modifying the editor document; the previous paste-based execution remains as a fallback</li>
+        </ul>
         <h3>Version 4.0.0</h3>
         <ul>
             <li><strong>NEW:</strong> Navigate Dependency Graph action, showing dependencies and consumers of the statement at the caret</li>
